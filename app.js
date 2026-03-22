@@ -137,6 +137,8 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick')?.includes(`'${page}'`)) n.classList.add('active');
   });
+  if (window.innerWidth <= 640) closeSidebar();
+
   const loaders = {
     dashboard:    refreshDashboard,
     receitas:     loadReceitas,
@@ -178,6 +180,29 @@ function toast(msg, type = 'success') {
   el.innerHTML = icon + msg;
   t.appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOBILE — controle da sidebar
+// ═══════════════════════════════════════════════════════════
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar.classList.contains('open')) {
+    closeSidebar();
+  } else {
+    sidebar.classList.add('open');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+function closeSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (!sidebar || !overlay) return;
+  sidebar.classList.remove('open');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // ═══════════════════════════════════════════════════════════

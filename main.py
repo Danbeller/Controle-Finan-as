@@ -459,6 +459,24 @@ async def add_empresa_usuario(slug: str, u: UsuarioTenantIn, user=Depends(get_cu
             raise HTTPException(status_code=400, detail="Username já existe nesta empresa")
     return {"ok": True}
 
+class AlterarSenhaIn(BaseModel):
+    nova_senha: str
+
+@app.patch("/superadmin/empresas/{slug}/usuarios/{uid}/senha")
+async def alterar_senha_usuario(slug: str, uid: int, body: AlterarSenhaIn, user=Depends(get_current_user)):
+    if not user.get("super"):
+        raise HTTPException(status_code=403)
+    if not body.nova_senha or len(body.nova_senha) < 4:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 4 caracteres")
+    if not os.path.exists(db_path_for(slug)):
+        raise HTTPException(status_code=404)
+    with get_tenant_db(slug) as conn:
+        row = conn.execute("SELECT id FROM usuarios WHERE id=?", (uid,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        conn.execute("UPDATE usuarios SET senha=? WHERE id=?", (pwd_ctx.hash(body.nova_senha), uid))
+    return {"ok": True}
+
 @app.delete("/superadmin/empresas/{slug}/usuarios/{uid}", status_code=204)
 async def remove_empresa_usuario(slug: str, uid: int, user=Depends(get_current_user)):
     if not user.get("super"):

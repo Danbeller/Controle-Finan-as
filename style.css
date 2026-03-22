@@ -165,8 +165,113 @@ tr:hover td { background:rgba(255,255,255,0.02); }
 .stock-ok { color:var(--green); }
 
 /* RESPONSIVE */
-@media(max-width:900px){ .stat-grid{grid-template-columns:1fr 1fr;} .charts-grid{grid-template-columns:1fr;} }
-@media(max-width:640px){ .sidebar{display:none;} .main{margin-left:0;} .stat-grid{grid-template-columns:1fr;} }
+@media(max-width:900px){
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .charts-grid{grid-template-columns:1fr;}
+}
+
+/* MOBILE HAMBURGER */
+.mobile-menu-btn {
+  display:none;
+  position:fixed;
+  top:12px; left:12px;
+  z-index:300;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  padding:8px 10px;
+  cursor:pointer;
+  color:var(--text);
+  align-items:center;
+  justify-content:center;
+}
+.sidebar-overlay {
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.65);
+  z-index:99;
+}
+.sidebar-overlay.open { display:block; }
+
+@media(max-width:640px){
+  /* Hamburguer visível */
+  .mobile-menu-btn { display:flex; }
+
+  /* Sidebar desliza da esquerda, oculta por padrão */
+  .sidebar {
+    display:flex !important;
+    transform:translateX(-100%);
+    transition:transform 0.25s ease;
+    z-index:200;
+  }
+  .sidebar.open { transform:translateX(0); }
+
+  /* Main sem margem lateral, espaço para o hamburguer */
+  .main { margin-left:0 !important; padding:16px 12px; padding-top:54px; }
+
+  /* Auth card responsivo */
+  .auth-card { width:calc(100% - 32px); max-width:400px; padding:32px 18px; margin:16px; }
+
+  /* Stat grid 1 coluna */
+  .stat-grid { grid-template-columns:1fr !important; }
+
+  /* Charts grid 1 coluna */
+  .charts-grid { grid-template-columns:1fr !important; }
+
+  /* Grids 2 colunas do dashboard colapsam */
+  .main .page > div[style*="1fr 1fr"] { grid-template-columns:1fr !important; }
+
+  /* Page header empilha verticalmente */
+  .page-header { flex-direction:column; align-items:flex-start; gap:10px; }
+  .page-header > .btn { width:100%; justify-content:center; }
+  .page-header > div[style*="display:flex"] { width:100%; }
+
+  /* Tabelas com scroll horizontal */
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { min-width:500px; }
+
+  /* Células com botões lado a lado */
+  td[style*="display:flex"] { flex-wrap:wrap; gap:4px !important; }
+
+  /* Modal sobe da base como bottom sheet */
+  .modal-overlay.open { align-items:flex-end !important; }
+  .modal {
+    width:100% !important;
+    max-width:100vw !important;
+    max-height:90vh !important;
+    border-radius:16px 16px 0 0 !important;
+    padding:20px 16px !important;
+    margin:0;
+  }
+
+  /* Form rows em coluna no mobile */
+  .form-row,
+  .form-row.cols3 { grid-template-columns:1fr !important; }
+
+  /* Toast ocupa largura total */
+  #toast { left:12px; right:12px; bottom:14px; }
+  .toast-item { min-width:unset; width:100%; }
+
+  /* Botões menores em tabelas */
+  .btn-sm { padding:5px 9px; font-size:11px; }
+
+  /* Barra de pesquisa empilha */
+  .search-bar { flex-wrap:wrap; }
+  .search-bar .search-input[style*="max-width"] { max-width:100% !important; width:100%; }
+
+  /* Cards com padding menor */
+  .card { padding:14px; }
+
+  /* Título menor */
+  .page-title h2 { font-size:17px; }
+}
+
+@media(max-width:380px){
+  .main { padding:10px 8px; padding-top:50px; }
+  .auth-card { padding:24px 12px; }
+  .stat-value { font-size:18px; }
+}
 
 /* ANIMATIONS */
 @keyframes fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
