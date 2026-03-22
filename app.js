@@ -3,7 +3,7 @@
 // Conectado ao backend FastAPI + SQLite (.db)
 // ═══════════════════════════════════════════════════════════
 
-const API = 'http://localhost:8080';
+const API = window.location.origin.includes('localhost') ? 'http://localhost:8080' : '';
 
 let currentUser   = null;
 let authToken     = null;

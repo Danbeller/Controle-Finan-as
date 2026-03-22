@@ -11,6 +11,8 @@ from contextlib import contextmanager
 from fastapi import FastAPI, HTTPException, Depends, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -629,6 +631,19 @@ async def startup():
     init_db()
     print(f"✅ FinControl Pro iniciado — banco: {os.path.abspath(DB_PATH)}")
 
+# ─────────────────────────────────────────────
+# SERVE STATIC FILES (index.html, app.js, style.css)
+# ─────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+@app.get("/", include_in_schema=False)
+async def serve_index():
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
+
+# Mount static files AFTER all API routes
+app.mount("/", StaticFiles(directory=BASE_DIR, html=True), name="static")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
