@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinControl Pro — Sistema de Gestão Empresarial</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --bg2: #111318;
+    --bg3: #181c24;
+    --bg4: #1e2330;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555a6e;
+    --accent: #3b82f6;
+    --accent2: #1d4ed8;
+    --green: #10b981;
+    --green2: #064e3b;
+    --red: #ef4444;
+    --red2: #7f1d1d;
+    --amber: #f59e0b;
+    --amber2: #78350f;
+    --purple: #8b5cf6;
+    --radius: 10px;
+    --radius2: 14px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; }
+
+  /* AUTH */
+  #auth-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--bg); }
+  .auth-card { background:var(--bg2); border:1px solid var(--border2); border-radius:20px; padding:48px 40px; width:400px; }
+  .auth-logo { text-align:center; margin-bottom:32px; }
+  .auth-logo h1 { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:-1px; }
+  .auth-logo p { color:var(--text2); font-size:12px; margin-top:4px; }
+  .auth-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); color:var(--green); font-size:11px; padding:4px 10px; border-radius:20px; margin-bottom:24px; }
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:12px; color:var(--text2); margin-bottom:6px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; }
+  .form-group input { width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:11px 14px; color:var(--text); font-family:inherit; font-size:14px; outline:none; transition:border-color 0.2s; }
+  .form-group input:focus { border-color:var(--accent); }
+  .btn-primary { width:100%; background:var(--accent); color:#fff; border:none; border-radius:var(--radius); padding:13px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:background 0.2s; }
+  .btn-primary:hover { background:var(--accent2); }
+  .auth-error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; padding:10px 14px; border-radius:var(--radius); font-size:13px; margin-bottom:16px; display:none; }
+  .auth-hint { font-size:11px; color:var(--text3); text-align:center; margin-top:16px; }
+
+  /* APP LAYOUT */
+  #app { display:none; flex-direction:row; min-height:100vh; }
+
+  /* SIDEBAR */
+  .sidebar { width:220px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100; }
+  .sidebar-logo { padding:22px 20px 16px; border-bottom:1px solid var(--border); }
+  .sidebar-logo h2 { font-family:'Space Mono',monospace; font-size:16px; color:var(--accent); letter-spacing:-0.5px; }
+  .sidebar-logo span { font-size:11px; color:var(--text3); }
+  .sidebar-nav { flex:1; padding:12px 10px; overflow-y:auto; }
+  .nav-section { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; padding:10px 10px 6px; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; cursor:pointer; color:var(--text2); font-size:13px; font-weight:500; transition:all 0.15s; margin-bottom:2px; }
+  .nav-item:hover { background:var(--bg3); color:var(--text); }
+  .nav-item.active { background:rgba(59,130,246,0.12); color:var(--accent); }
+  .nav-item svg { width:16px; height:16px; flex-shrink:0; }
+  .sidebar-footer { padding:14px 10px; border-top:1px solid var(--border); }
+  .user-badge { display:flex; align-items:center; gap:10px; padding:8px 10px; }
+  .user-avatar { width:30px; height:30px; background:rgba(59,130,246,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--accent); }
+  .user-info { flex:1; min-width:0; }
+  .user-name { font-size:12px; font-weight:600; color:var(--text); }
+  .user-role { font-size:10px; color:var(--text3); }
+  .btn-logout { background:none; border:none; color:var(--text3); cursor:pointer; padding:4px; border-radius:6px; transition:color 0.2s; }
+  .btn-logout:hover { color:var(--red); }
+
+  /* MAIN */
+  .main { flex:1; margin-left:220px; padding:28px; overflow-x:hidden; }
+  .page { display:none; }
+  .page.active { display:block; }
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .page-title h2 { font-size:20px; font-weight:600; color:var(--text); }
+  .page-title p { font-size:13px; color:var(--text2); margin-top:2px; }
+
+  /* CARDS */
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+  .stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius2); padding:20px; }
+  .stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+  .stat-value { font-size:22px; font-weight:600; color:var(--text); font-family:'Space Mono',monospace; }
+  .stat-change { font-size:12px; margin-top:6px; }
+  .stat-change.pos { color:var(--green); }
+  .stat-change.neg { color:var(--red); }
+  .stat-icon { float:right; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; margin-top:-4px; }
+
+  /* CONTENT CARDS */
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius2); padding:20px; margin-bottom:18px; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .card-title { font-size:14px; font-weight:600; color:var(--text); }
+  .card-subtitle { font-size:12px; color:var(--text2); margin-top:2px; }
+
+  /* TABLES */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; padding:8px 12px; text-align:left; border-bottom:1px solid var(--border); }
+  td { padding:12px 12px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,0.02); }
+
+  /* BADGES */
+  .badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+  .badge-green { background:rgba(16,185,129,0.12); color:var(--green); }
+  .badge-red { background:rgba(239,68,68,0.12); color:var(--red); }
+  .badge-amber { background:rgba(245,158,11,0.12); color:var(--amber); }
+  .badge-blue { background:rgba(59,130,246,0.12); color:var(--accent); }
+  .badge-purple { background:rgba(139,92,246,0.12); color:var(--purple); }
+
+  /* BUTTONS */
+  .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:var(--radius); font-family:inherit; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:all 0.15s; }
+  .btn-sm { padding:6px 12px; font-size:12px; }
+  .btn-blue { background:var(--accent); color:#fff; }
+  .btn-blue:hover { background:var(--accent2); }
+  .btn-ghost { background:var(--bg3); border:1px solid var(--border2); color:var(--text2); }
+  .btn-ghost:hover { color:var(--text); border-color:var(--border2); background:var(--bg4); }
+  .btn-danger { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:var(--red); }
+  .btn-danger:hover { background:rgba(239,68,68,0.2); }
+  .btn-success { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); color:var(--green); }
+
+  /* MODAL */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--bg2); border:1px solid var(--border2); border-radius:16px; padding:28px; width:520px; max-width:95vw; max-height:90vh; overflow-y:auto; }
+  .modal h3 { font-size:16px; font-weight:600; margin-bottom:20px; color:var(--text); }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .form-row.cols3 { grid-template-columns:1fr 1fr 1fr; }
+  .modal .form-group input, .modal .form-group select, .modal .form-group textarea {
+    width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:10px 14px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
+  .modal .form-group select { appearance:none; }
+  .modal .form-group textarea { min-height:80px; resize:vertical; }
+  .modal .form-group input:focus, .modal .form-group select:focus { border-color:var(--accent); }
+
+  /* SEARCH BAR */
+  .search-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .search-input { flex:1; background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:9px 14px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
+  .search-input:focus { border-color:var(--accent); }
+  .search-input::placeholder { color:var(--text3); }
+
+  /* CHART */
+  .chart-container { position:relative; height:220px; }
+  .charts-grid { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:18px; }
+
+  /* ALERT */
+  .alert { padding:12px 16px; border-radius:var(--radius); font-size:13px; margin-bottom:14px; }
+  .alert-warning { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); color:var(--amber); }
+
+  /* DIVIDER */
+  .divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+
+  /* TAGS */
+  .tag-list { display:flex; flex-wrap:wrap; gap:6px; }
+
+  /* PILLS */
+  .filter-pills { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .pill { padding:5px 14px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border2); background:var(--bg3); color:var(--text2); transition:all 0.15s; }
+  .pill.active { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.4); color:var(--accent); }
+
+  /* SUMMARY ROWS */
+  .summary-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .summary-row:last-child { border-bottom:none; }
+  .summary-total { display:flex; justify-content:space-between; align-items:center; padding:12px 0 0; font-size:15px; font-weight:600; }
+
+  /* STOCK ALERT */
+  .stock-low { color:var(--red); font-weight:600; }
+  .stock-ok { color:var(--green); }
+
+  /* RESPONSIVE */
+  @media(max-width:900px){ .stat-grid{grid-template-columns:1fr 1fr;} .charts-grid{grid-template-columns:1fr;} }
+  @media(max-width:640px){ .sidebar{display:none;} .main{margin-left:0;} .stat-grid{grid-template-columns:1fr;} }
+
+  /* ANIMATIONS */
+  @keyframes fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .page.active { animation:fadein 0.25s ease; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align:center; padding:48px; color:var(--text3); }
+  .empty-state svg { width:40px; height:40px; margin:0 auto 12px; opacity:0.3; }
+  .empty-state p { font-size:13px; }
+
+  /* TOAST */
+  #toast { position:fixed; bottom:24px; right:24px; z-index:999; }
+  .toast-item { background:var(--bg3); border:1px solid var(--border2); border-radius:10px; padding:12px 16px; font-size:13px; margin-top:8px; min-width:220px; box-shadow:var(--shadow); animation:fadein 0.2s ease; display:flex; align-items:center; gap:10px; }
+  .toast-item.success { border-color:rgba(16,185,129,0.4); }
+  .toast-item.error { border-color:rgba(239,68,68,0.4); }
+
+  /* NUMBER FORMAT */
+  .money { font-family:'Space Mono',monospace; }
+  .money-green { color:var(--green); }
+  .money-red { color:var(--red); }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>FinControl Pro</h1>
+      <p>Sistema de Gestão Empresarial</p>
+    </div>
+    <div style="text-align:center; margin-bottom:24px;">
+      <span class="auth-badge">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
+        Ambiente Seguro — SQL Criptografado
+      </span>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="form-group"><label>Usuário</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"/></div>
+    <div class="form-group"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn-primary" onclick="doLogin()">Entrar no Sistema</button>
+    <p class="auth-hint">Demo: admin / admin123 &nbsp;|&nbsp; gerente / gerente123</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h2>FinControl</h2>
+      <span>Sistema Empresarial</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-section">Financeiro</div>
+      <div class="nav-item" onclick="navigate('receitas')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        Receitas
+      </div>
+      <div class="nav-item" onclick="navigate('despesas')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+        Despesas
+      </div>
+      <div class="nav-item" onclick="navigate('fluxo')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Fluxo de Caixa
+      </div>
+      <div class="nav-section">Estoque</div>
+      <div class="nav-item" onclick="navigate('produtos')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Produtos
+      </div>
+      <div class="nav-item" onclick="navigate('movimentos')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        Movimentações
+      </div>
+      <div class="nav-section">Gestão</div>
+      <div class="nav-item" onclick="navigate('clientes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clientes
+      </div>
+      <div class="nav-item" onclick="navigate('fornecedores')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Fornecedores
+      </div>
+      <div class="nav-item" onclick="navigate('relatorios')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Relatórios
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="user-avatar">AD</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name-display">Admin</div>
+          <div class="user-role" id="user-role-display">Administrador</div>
+        </div>
+        <button class="btn-logout" onclick="doLogout()" title="Sair">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title"><h2>Dashboard</h2><p>Visão geral do negócio — <span id="today-date"></span></p></div>
+        <button class="btn btn-ghost btn-sm" onclick="refreshDashboard()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Atualizar
+        </button>
+      </div>
+      <div class="stat-grid" id="dash-stats"></div>
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Fluxo Mensal</div><div class="card-subtitle">Receitas vs Despesas (últimos 6 meses)</div></div></div>
+          <div class="chart-container"><canvas id="chart-fluxo"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Categorias</div><div class="card-subtitle">Distribuição de despesas</div></div></div>
+          <div class="chart-container"><canvas id="chart-cat"></canvas></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Últimas Transações</div><button class="btn btn-ghost btn-sm" onclick="navigate('receitas')">Ver todas</button></div>
+          <div id="dash-transactions"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Estoque Crítico</div><span class="badge badge-red" id="dash-low-count">0</span></div>
+          <div id="dash-lowstock"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECEITAS -->
+    <div class="page" id="page-receitas">
+      <div class="page-header">
+        <div class="page-title"><h2>Receitas</h2><p>Controle de entradas financeiras</p></div>
+        <button class="btn btn-blue" onclick="openModal('receita')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova Receita
+        </button>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Buscar receitas..." id="search-receitas" oninput="loadReceitas()">
+        <select id="filter-receitas-cat" class="search-input" style="max-width:180px;" onchange="loadReceitas()">
+          <option value="">Todas as categorias</option>
+          <option>Vendas</option><option>Serviços</option><option>Investimentos</option><option>Outras</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Cliente</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tb-receitas"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESPESAS -->
+    <div class="page" id="page-despesas">
+      <div class="page-header">
+        <div class="page-title"><h2>Despesas</h2><p>Controle de saídas financeiras</p></div>
+        <button class="btn btn-blue" onclick="openModal('despesa')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova Despesa
+        </button>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Buscar despesas..." id="search-despesas" oninput="loadDespesas()">
+        <select id="filter-despesas-cat" class="search-input" style="max-width:180px;" onchange="loadDespesas()">
+          <option value="">Todas as categorias</option>
+          <option>Fornecedores</option><option>Folha de Pagamento</option><option>Aluguel</option><option>Utilities</option><option>Marketing</option><option>Outras</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Fornecedor</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tb-despesas"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLUXO DE CAIXA -->
+    <div class="page" id="page-fluxo">
+      <div class="page-header">
+        <div class="page-title"><h2>Fluxo de Caixa</h2><p>Posição financeira consolidada</p></div>
+        <select id="fluxo-period" class="btn btn-ghost btn-sm" onchange="loadFluxo()" style="cursor:pointer;">
+          <option value="7">Últimos 7 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+        </select>
+      </div>
+      <div class="stat-grid" id="fluxo-stats"></div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Evolução do Saldo</div></div>
+        <div class="chart-container" style="height:280px;"><canvas id="chart-saldo"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Extrato Detalhado</div></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Saldo Acumulado</th></tr></thead>
+          <tbody id="tb-fluxo"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUTOS -->
+    <div class="page" id="page-produtos">
+      <div class="page-header">
+        <div class="page-title"><h2>Produtos & Estoque</h2><p>Gestão de inventário</p></div>
+        <button class="btn btn-blue" onclick="openModal('produto')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Produto
+        </button>
+      </div>
+      <div id="alert-estoque" class="alert alert-warning" style="display:none;"></div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Buscar produto, código, categoria..." id="search-produtos" oninput="loadProdutos()">
+        <select id="filter-produtos-cat" class="search-input" style="max-width:160px;" onchange="loadProdutos()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Estoque</th><th>Mín.</th><th>Custo</th><th>Preço Venda</th><th>Margem</th><th></th></tr></thead>
+          <tbody id="tb-produtos"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOVIMENTAÇÕES -->
+    <div class="page" id="page-movimentos">
+      <div class="page-header">
+        <div class="page-title"><h2>Movimentações de Estoque</h2><p>Entradas e saídas de produtos</p></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-success" onclick="openModal('entrada')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+            Entrada
+          </button>
+          <button class="btn btn-danger" onclick="openModal('saida')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
+            Saída
+          </button>
+        </div>
+      </div>
+      <div class="filter-pills" id="mov-filter">
+        <div class="pill active" onclick="filterMov('todos',this)">Todos</div>
+        <div class="pill" onclick="filterMov('entrada',this)">Entradas</div>
+        <div class="pill" onclick="filterMov('saida',this)">Saídas</div>
+        <div class="pill" onclick="filterMov('ajuste',this)">Ajustes</div>
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Data/Hora</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Custo Unit.</th><th>Total</th><th>Usuário</th><th>Observação</th></tr></thead>
+          <tbody id="tb-movimentos"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="page" id="page-clientes">
+      <div class="page-header">
+        <div class="page-title"><h2>Clientes</h2><p>Cadastro de clientes</p></div>
+        <button class="btn btn-blue" onclick="openModal('cliente')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Cliente
+        </button>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Buscar por nome, CPF/CNPJ, telefone..." id="search-clientes" oninput="loadClientes()">
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Email</th><th>Telefone</th><th>Cidade</th><th>Total Compras</th><th></th></tr></thead>
+          <tbody id="tb-clientes"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORNECEDORES -->
+    <div class="page" id="page-fornecedores">
+      <div class="page-header">
+        <div class="page-title"><h2>Fornecedores</h2><p>Cadastro de fornecedores</p></div>
+        <button class="btn btn-blue" onclick="openModal('fornecedor')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Fornecedor
+        </button>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Buscar fornecedor..." id="search-fornecedores" oninput="loadFornecedores()">
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Razão Social</th><th>CNPJ</th><th>Contato</th><th>Email</th><th>Telefone</th><th>Total Compras</th><th></th></tr></thead>
+          <tbody id="tb-fornecedores"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELATÓRIOS -->
+    <div class="page" id="page-relatorios">
+      <div class="page-header">
+        <div class="page-title"><h2>Relatórios</h2><p>Análises e exportações</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">DRE Simplificado</div>
+          <div id="rel-dre"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">Top 5 Produtos — Movimentação</div>
+          <div id="rel-top-produtos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">Resumo de Categorias de Despesas</div>
+          <div class="chart-container"><canvas id="chart-desp-cat"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">Resumo de Categorias de Receitas</div>
+          <div class="chart-container"><canvas id="chart-rec-cat"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Log de Auditoria</div><span class="badge badge-blue">Segurança</span></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Tabela</th><th>Detalhe</th></tr></thead>
+          <tbody id="tb-audit"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// SECURITY — Hash simples (SHA-256 simulado com base64 + salt)
+// ═══════════════════════════════════════════════════════════
+function hashPassword(pw) {
+  // Simula hash com salt fixo (em produção real usar bcrypt no backend)
+  const salt = 'FINCONTROL_SALT_2024';
+  let h = 0;
+  const str = salt + pw;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    h = ((h << 5) - h) + char;
+    h |= 0;
+  }
+  return 'hashed_' + Math.abs(h).toString(16).padStart(8,'0');
+}
+
+// Usuários do sistema (em produção: tabela users no banco)
+const USERS = {
+  'admin':   { hash: hashPassword('admin123'),   name:'Administrador', role:'admin',   initials:'AD' },
+  'gerente': { hash: hashPassword('gerente123'), name:'Gerente',       role:'gerente', initials:'GR' }
+};
+
+let currentUser = null;
+let db = null;
+let chartFluxo = null, chartCat = null, chartSaldo = null, chartDespCat = null, chartRecCat = null;
+let movFilterType = 'todos';
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim().toLowerCase();
+  const p = document.getElementById('login-pass').value;
+  const err = document.getElementById('auth-error');
+  err.style.display = 'none';
+  if (!u || !p) { err.textContent = 'Preencha todos os campos.'; err.style.display='block'; return; }
+  const user = USERS[u];
+  if (!user || user.hash !== hashPassword(p)) {
+    err.textContent = 'Usuário ou senha inválidos.';
+    err.style.display = 'block';
+    auditLog('SISTEMA', 'LOGIN_FALHOU', 'auth', `Tentativa falha para: ${u}`);
+    return;
+  }
+  currentUser = { username: u, ...user };
+  document.getElementById('user-name-display').textContent = user.name;
+  document.getElementById('user-role-display').textContent = user.role === 'admin' ? 'Administrador' : 'Gerente';
+  document.getElementById('user-avatar').textContent = user.initials;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  auditLog(u, 'LOGIN', 'auth', 'Login bem-sucedido');
+  refreshDashboard();
+}
+
+function doLogout() {
+  auditLog(currentUser.username, 'LOGOUT', 'auth', 'Sessão encerrada');
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// DATABASE — SQL.js initialization
+// ═══════════════════════════════════════════════════════════
+async function initDB() {
+  const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+  db = new SQL.Database();
+  createSchema();
+  seedData();
+}
+
+function createSchema() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS categorias (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      tipo TEXT NOT NULL CHECK(tipo IN ('receita','despesa','produto'))
+    );
+    CREATE TABLE IF NOT EXISTS clientes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      cpf_cnpj TEXT,
+      email TEXT,
+      telefone TEXT,
+      endereco TEXT,
+      cidade TEXT,
+      criado_em TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS fornecedores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      razao_social TEXT NOT NULL,
+      cnpj TEXT,
+      contato TEXT,
+      email TEXT,
+      telefone TEXT,
+      endereco TEXT,
+      criado_em TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS produtos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codigo TEXT UNIQUE NOT NULL,
+      nome TEXT NOT NULL,
+      categoria TEXT,
+      descricao TEXT,
+      estoque_atual REAL DEFAULT 0,
+      estoque_minimo REAL DEFAULT 5,
+      custo REAL DEFAULT 0,
+      preco_venda REAL DEFAULT 0,
+      unidade TEXT DEFAULT 'un',
+      ativo INTEGER DEFAULT 1,
+      criado_em TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS movimentos_estoque (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      produto_id INTEGER NOT NULL,
+      tipo TEXT NOT NULL CHECK(tipo IN ('entrada','saida','ajuste')),
+      quantidade REAL NOT NULL,
+      custo_unitario REAL DEFAULT 0,
+      usuario TEXT NOT NULL,
+      observacao TEXT,
+      data_hora TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(produto_id) REFERENCES produtos(id)
+    );
+    CREATE TABLE IF NOT EXISTS transacoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo TEXT NOT NULL CHECK(tipo IN ('receita','despesa')),
+      descricao TEXT NOT NULL,
+      categoria TEXT,
+      valor REAL NOT NULL,
+      data TEXT NOT NULL,
+      cliente_id INTEGER,
+      fornecedor_id INTEGER,
+      status TEXT DEFAULT 'pago' CHECK(status IN ('pago','pendente','cancelado')),
+      observacao TEXT,
+      criado_por TEXT,
+      criado_em TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(cliente_id) REFERENCES clientes(id),
+      FOREIGN KEY(fornecedor_id) REFERENCES fornecedores(id)
+    );
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      usuario TEXT NOT NULL,
+      acao TEXT NOT NULL,
+      tabela TEXT,
+      detalhe TEXT,
+      data_hora TEXT DEFAULT (datetime('now'))
+    );
+  `);
+}
+
+function seedData() {
+  // Clientes
+  const clientes = [
+    ['João Silva','123.456.789-00','joao@email.com','(11) 99999-1111','Rua das Flores, 100','São Paulo'],
+    ['Maria Souza','987.654.321-00','maria@email.com','(11) 99999-2222','Av. Brasil, 200','Campinas'],
+    ['Tech Corp Ltda','12.345.678/0001-99','contato@techcorp.com','(11) 3333-4444','Rua Tecnologia, 50','São Paulo'],
+    ['Ana Oliveira','111.222.333-44','ana@email.com','(11) 99999-3333','Rua dos Pinheiros, 30','Araçatuba'],
+  ];
+  clientes.forEach(c => {
+    try { db.run('INSERT INTO clientes(nome,cpf_cnpj,email,telefone,endereco,cidade) VALUES(?,?,?,?,?,?)', c); } catch(e) {}
+  });
+  // Fornecedores
+  const fornecedores = [
+    ['Distribuidora ABC','00.111.222/0001-33','Carlos Lima','abc@dist.com','(11) 4444-5555','Rua Comercial, 10'],
+    ['Atacado XYZ','00.222.333/0001-44','Silvia Costa','xyz@atacado.com','(11) 4444-6666','Av. Industrial, 200'],
+    ['TechSupply Brasil','00.333.444/0001-55','Paulo Ramos','tech@supply.com','(11) 4444-7777','Rua Imports, 80'],
+  ];
+  fornecedores.forEach(f => {
+    try { db.run('INSERT INTO fornecedores(razao_social,cnpj,contato,email,telefone,endereco) VALUES(?,?,?,?,?,?)', f); } catch(e) {}
+  });
+  // Produtos
+  const produtos = [
+    ['PRD001','Notebook Dell 15"','Informática','Notebook i5 16GB 512SSD',8,3,2800,4299,'un'],
+    ['PRD002','Mouse Wireless','Periféricos','Mouse sem fio 2.4GHz',45,10,35,89,'un'],
+    ['PRD003','Teclado Mecânico','Periféricos','Teclado RGB switches blue',12,5,120,249,'un'],
+    ['PRD004','Monitor 27" Full HD','Informática','Monitor IPS 144Hz',3,2,800,1599,'un'],
+    ['PRD005','Cabo HDMI 2m','Acessórios','Cabo HDMI 2.0 4K',2,8,12,35,'un'],
+    ['PRD006','Headset Gamer','Periféricos','Headset 7.1 virtual surround',20,5,85,199,'un'],
+    ['PRD007','SSD 480GB','Armazenamento','SSD SATA 480GB',18,5,150,289,'un'],
+    ['PRD008','Hub USB-C 7 portas','Acessórios','Hub multiportas USB-C',1,4,95,189,'un'],
+  ];
+  produtos.forEach(p => {
+    try { db.run('INSERT INTO produtos(codigo,nome,categoria,descricao,estoque_atual,estoque_minimo,custo,preco_venda,unidade) VALUES(?,?,?,?,?,?,?,?,?)', p); } catch(e) {}
+  });
+  // Transações — últimos 90 dias
+  const now = new Date();
+  const receitas = [
+    ['Venda Notebook x2','Vendas',8598,'1',null],
+    ['Venda Mouse + Teclado','Vendas',338,'2',null],
+    ['Serviço Manutenção','Serviços',350,'3',null],
+    ['Venda Monitor','Vendas',1599,'4',null],
+    ['Consultoria TI','Serviços',1200,'1',null],
+    ['Venda Headset x3','Vendas',597,'2',null],
+    ['Venda SSD x2','Vendas',578,'3',null],
+    ['Projeto Instalação Rede','Serviços',2500,'4',null],
+    ['Venda Acessórios Kit','Vendas',224,'1',null],
+    ['Manutenção Mensal','Serviços',800,'2',null],
+  ];
+  receitas.forEach((r, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (i * 8 + Math.floor(Math.random()*5)));
+    try {
+      db.run('INSERT INTO transacoes(tipo,descricao,categoria,valor,data,cliente_id,status,criado_por) VALUES(?,?,?,?,?,?,?,?)',
+        ['receita', r[0], r[1], r[2], d.toISOString().split('T')[0], r[3], 'pago', 'admin']);
+    } catch(e) {}
+  });
+  const despesas = [
+    ['Compra Estoque Notebooks','Fornecedores',5600,null,'1'],
+    ['Folha de Pagamento Julho','Folha de Pagamento',4200,null,null],
+    ['Aluguel Agosto','Aluguel',2500,null,null],
+    ['Conta de Energia','Utilities',380,null,null],
+    ['Compra Periféricos','Fornecedores',1800,null,'2'],
+    ['Internet e Telefone','Utilities',250,null,null],
+    ['Marketing Digital','Marketing',600,null,null],
+    ['Material de Escritório','Outras',180,null,null],
+    ['Seguro Equipamentos','Outras',420,null,null],
+    ['Compra SSDs e HDDs','Fornecedores',900,null,'3'],
+  ];
+  despesas.forEach((d, i) => {
+    const dt = new Date(now);
+    dt.setDate(dt.getDate() - (i * 7 + Math.floor(Math.random()*4)));
+    try {
+      db.run('INSERT INTO transacoes(tipo,descricao,categoria,valor,data,fornecedor_id,status,criado_por) VALUES(?,?,?,?,?,?,?,?)',
+        ['despesa', d[0], d[1], d[2], dt.toISOString().split('T')[0], d[4], 'pago', 'admin']);
+    } catch(e) {}
+  });
+  // Movimentos de estoque
+  const movs = [
+    [1,'entrada',10,2800,'admin','Compra inicial fornecedor ABC'],
+    [2,'entrada',50,35,'admin','Reposição estoque'],
+    [3,'entrada',15,120,'admin','Compra atacado XYZ'],
+    [1,'saida',2,0,'admin','Venda cliente João Silva'],
+    [6,'entrada',25,85,'admin','Compra Headsets'],
+    [4,'entrada',5,800,'admin','Reposição Monitores'],
+    [4,'saida',2,0,'admin','Venda Tech Corp'],
+    [5,'saida',10,0,'admin','Venda cabos lote'],
+    [7,'entrada',20,150,'admin','Entrada SSDs'],
+  ];
+  movs.forEach((m, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (i * 9));
+    try {
+      db.run('INSERT INTO movimentos_estoque(produto_id,tipo,quantidade,custo_unitario,usuario,observacao,data_hora) VALUES(?,?,?,?,?,?,?)',
+        [...m, d.toISOString().replace('T',' ').substring(0,19)]);
+    } catch(e) {}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIT LOG
+// ═══════════════════════════════════════════════════════════
+function auditLog(user, acao, tabela, detalhe) {
+  if (!db) return;
+  try { db.run('INSERT INTO audit_log(usuario,acao,tabela,detalhe) VALUES(?,?,?,?)', [user,acao,tabela,detalhe]); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(page)) n.classList.add('active');
+  });
+  const loaders = { receitas:loadReceitas, despesas:loadDespesas, fluxo:loadFluxo, produtos:loadProdutos, movimentos:loadMovimentos, clientes:loadClientes, fornecedores:loadFornecedores, relatorios:loadRelatorios };
+  if (loaders[page]) loaders[page]();
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function fmt(v) { return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtDate(d) { if (!d) return '—'; return d.split('-').reverse().join('/'); }
+function query(sql, params=[]) {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
+function exec(sql, params=[]) { db.run(sql, params); }
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = 'toast-item ' + type;
+  el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${type==='success'?'#10b981':'#ef4444'}" stroke-width="2"><path d="${type==='success'?'M22 11.08V12a10 10 0 1 1-5.93-9.14':'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'}"/>${type==='success'?'<polyline points="9 11 12 14 22 4"/>':'<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'}</svg>${msg}`;
+  t.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function refreshDashboard() {
+  if (!db) return;
+  const totalRec = query("SELECT COALESCE(SUM(valor),0) as v FROM transacoes WHERE tipo='receita' AND status='pago'")[0].v;
+  const totalDesp = query("SELECT COALESCE(SUM(valor),0) as v FROM transacoes WHERE tipo='despesa' AND status='pago'")[0].v;
+  const saldo = totalRec - totalDesp;
+  const totalProd = query("SELECT COUNT(*) as c FROM produtos WHERE ativo=1")[0].c;
+  const low = query("SELECT COUNT(*) as c FROM produtos WHERE ativo=1 AND estoque_atual <= estoque_minimo")[0].c;
+
+  const stats = [
+    { label:'Saldo Total', value: fmt(saldo), change: saldo >= 0 ? '▲ Positivo' : '▼ Negativo', pos: saldo >= 0, color:'#3b82f6', icon:'💰' },
+    { label:'Total Receitas', value: fmt(totalRec), change:'Confirmadas', pos:true, color:'#10b981', icon:'📈' },
+    { label:'Total Despesas', value: fmt(totalDesp), change:'Pagas', pos:false, color:'#ef4444', icon:'📉' },
+    { label:'Produtos Ativos', value: totalProd, change: low > 0 ? `⚠ ${low} abaixo mínimo` : '✓ Estoque ok', pos: low === 0, color:'#8b5cf6', icon:'📦' },
+  ];
+  document.getElementById('dash-stats').innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div class="stat-label">${s.label}</div>
+        <div style="font-size:20px;">${s.icon}</div>
+      </div>
+      <div class="stat-value" style="font-size:18px;">${s.value}</div>
+      <div class="stat-change ${s.pos?'pos':'neg'}">${s.change}</div>
+    </div>`).join('');
+
+  // Últimas transações
+  const trans = query("SELECT t.*, c.nome as cli FROM transacoes t LEFT JOIN clientes c ON t.cliente_id=c.id ORDER BY t.data DESC, t.id DESC LIMIT 6");
+  document.getElementById('dash-transactions').innerHTML = trans.length ? trans.map(t => `
+    <div class="summary-row">
+      <div><div style="font-size:13px;font-weight:500;">${t.descricao}</div><div style="font-size:11px;color:var(--text3);">${fmtDate(t.data)} · ${t.categoria||''}</div></div>
+      <div class="money ${t.tipo==='receita'?'money-green':'money-red'}">${t.tipo==='receita'?'+':'-'}${fmt(t.valor)}</div>
+    </div>`).join('') : '<div class="empty-state"><p>Nenhuma transação</p></div>';
+
+  // Estoque crítico
+  document.getElementById('dash-low-count').textContent = low;
+  const lowProds = query("SELECT * FROM produtos WHERE ativo=1 AND estoque_atual <= estoque_minimo LIMIT 5");
+  document.getElementById('dash-lowstock').innerHTML = lowProds.length ? lowProds.map(p => `
+    <div class="summary-row">
+      <div><div style="font-size:13px;font-weight:500;">${p.nome}</div><div style="font-size:11px;color:var(--text3);">${p.codigo}</div></div>
+      <div><span class="stock-low">${p.estoque_atual}</span> <span style="color:var(--text3);font-size:11px;">/ mín ${p.estoque_minimo}</span></div>
+    </div>`).join('') : '<div class="empty-state" style="padding:24px;"><p>Nenhum produto crítico ✓</p></div>';
+
+  buildChartFluxo();
+  buildChartCat();
+}
+
+function buildChartFluxo() {
+  const months = [];
+  const rec = [], desp = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const m = d.toISOString().substring(0,7);
+    months.push(d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));
+    const r = query("SELECT COALESCE(SUM(valor),0) as v FROM transacoes WHERE tipo='receita' AND strftime('%Y-%m',data)=?", [m])[0].v;
+    const d2 = query("SELECT COALESCE(SUM(valor),0) as v FROM transacoes WHERE tipo='despesa' AND strftime('%Y-%m',data)=?", [m])[0].v;
+    rec.push(Number(r)); desp.push(Number(d2));
+  }
+  const ctx = document.getElementById('chart-fluxo').getContext('2d');
+  if (chartFluxo) chartFluxo.destroy();
+  chartFluxo = new Chart(ctx, {
+    type:'bar', data:{labels:months, datasets:[
+      {label:'Receitas',data:rec,backgroundColor:'rgba(16,185,129,0.6)',borderRadius:4},
+      {label:'Despesas',data:desp,backgroundColor:'rgba(239,68,68,0.5)',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b90a0',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#555a6e'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#555a6e',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+}
+
+function buildChartCat() {
+  const cats = query("SELECT categoria, SUM(valor) as total FROM transacoes WHERE tipo='despesa' AND status='pago' GROUP BY categoria ORDER BY total DESC LIMIT 5");
+  const ctx = document.getElementById('chart-cat').getContext('2d');
+  if (chartCat) chartCat.destroy();
+  const colors = ['#3b82f6','#8b5cf6','#ef4444','#f59e0b','#10b981'];
+  chartCat = new Chart(ctx, {
+    type:'doughnut', data:{labels:cats.map(c=>c.categoria||'Outras'), datasets:[{data:cats.map(c=>c.total),backgroundColor:colors,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b90a0',font:{size:11},boxWidth:12}}}}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RECEITAS
+// ═══════════════════════════════════════════════════════════
+function loadReceitas() {
+  const s = document.getElementById('search-receitas').value;
+  const cat = document.getElementById('filter-receitas-cat').value;
+  let sql = "SELECT t.*, c.nome as cli FROM transacoes t LEFT JOIN clientes c ON t.cliente_id=c.id WHERE t.tipo='receita'";
+  const params = [];
+  if (s) { sql += " AND (t.descricao LIKE ? OR t.categoria LIKE ?)"; params.push('%'+s+'%','%'+s+'%'); }
+  if (cat) { sql += " AND t.categoria=?"; params.push(cat); }
+  sql += " ORDER BY t.data DESC, t.id DESC";
+  const rows = query(sql, params);
+  const statusBadge = s => s==='pago'?'badge-green':s==='pendente'?'badge-amber':'badge-red';
+  document.getElementById('tb-receitas').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${fmtDate(r.data)}</td>
+      <td>${r.descricao}</td>
+      <td><span class="badge badge-blue">${r.categoria||'—'}</span></td>
+      <td>${r.cli||'—'}</td>
+      <td class="money money-green">+${fmt(r.valor)}</td>
+      <td><span class="badge ${statusBadge(r.status)}">${r.status}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteTransacao(${r.id},'receita')">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px;">Nenhuma receita encontrada</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DESPESAS
+// ═══════════════════════════════════════════════════════════
+function loadDespesas() {
+  const s = document.getElementById('search-despesas').value;
+  const cat = document.getElementById('filter-despesas-cat').value;
+  let sql = "SELECT t.*, f.razao_social as forn FROM transacoes t LEFT JOIN fornecedores f ON t.fornecedor_id=f.id WHERE t.tipo='despesa'";
+  const params = [];
+  if (s) { sql += " AND (t.descricao LIKE ? OR t.categoria LIKE ?)"; params.push('%'+s+'%','%'+s+'%'); }
+  if (cat) { sql += " AND t.categoria=?"; params.push(cat); }
+  sql += " ORDER BY t.data DESC, t.id DESC";
+  const rows = query(sql, params);
+  const statusBadge = s => s==='pago'?'badge-green':s==='pendente'?'badge-amber':'badge-red';
+  document.getElementById('tb-despesas').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${fmtDate(r.data)}</td>
+      <td>${r.descricao}</td>
+      <td><span class="badge badge-red">${r.categoria||'—'}</span></td>
+      <td>${r.forn||'—'}</td>
+      <td class="money money-red">-${fmt(r.valor)}</td>
+      <td><span class="badge ${statusBadge(r.status)}">${r.status}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteTransacao(${r.id},'despesa')">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px;">Nenhuma despesa encontrada</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FLUXO DE CAIXA
+// ═══════════════════════════════════════════════════════════
+function loadFluxo() {
+  const days = parseInt(document.getElementById('fluxo-period').value);
+  const rows = query(`SELECT tipo, data, descricao, valor FROM transacoes WHERE status='pago' AND data >= date('now','-${days} days') ORDER BY data, id`);
+  let saldo = 0;
+  const labels=[], saldos=[], recArr=[], despArr=[];
+  const extrato = rows.map(r => {
+    const delta = r.tipo === 'receita' ? r.valor : -r.valor;
+    saldo += delta;
+    return {...r, delta, saldo};
+  });
+
+  // Agrupar por data para gráfico
+  const byDate = {};
+  extrato.forEach(r => {
+    if (!byDate[r.data]) byDate[r.data] = {saldo:0,rec:0,desp:0};
+    byDate[r.data].saldo = r.saldo;
+    if (r.tipo==='receita') byDate[r.data].rec += r.valor;
+    else byDate[r.data].desp += r.valor;
+  });
+  Object.entries(byDate).forEach(([d,v]) => {
+    labels.push(fmtDate(d)); saldos.push(v.saldo); recArr.push(v.rec); despArr.push(v.desp);
+  });
+
+  const totalRec = extrato.filter(r=>r.tipo==='receita').reduce((a,r)=>a+r.valor,0);
+  const totalDesp = extrato.filter(r=>r.tipo==='despesa').reduce((a,r)=>a+r.valor,0);
+  document.getElementById('fluxo-stats').innerHTML = [
+    {label:'Receitas no Período', value:fmt(totalRec), c:'money-green'},
+    {label:'Despesas no Período', value:fmt(totalDesp), c:'money-red'},
+    {label:'Resultado', value:fmt(totalRec-totalDesp), c:totalRec>=totalDesp?'money-green':'money-red'},
+    {label:'Saldo Acumulado', value:fmt(saldo), c:''},
+  ].map(s=>`<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-value ${s.c}" style="font-size:17px;">${s.value}</div></div>`).join('');
+
+  const ctx = document.getElementById('chart-saldo').getContext('2d');
+  if (chartSaldo) chartSaldo.destroy();
+  chartSaldo = new Chart(ctx, {
+    type:'line', data:{labels, datasets:[{label:'Saldo',data:saldos,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',tension:0.4,fill:true,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b90a0'}}},
+      scales:{x:{ticks:{color:'#555a6e',maxTicksLimit:10},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#555a6e',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  document.getElementById('tb-fluxo').innerHTML = extrato.length ? [...extrato].reverse().map(r => `
+    <tr>
+      <td>${fmtDate(r.data)}</td>
+      <td>${r.descricao}</td>
+      <td><span class="badge ${r.tipo==='receita'?'badge-green':'badge-red'}">${r.tipo}</span></td>
+      <td class="money ${r.tipo==='receita'?'money-green':'money-red'}">${r.tipo==='receita'?'+':'-'}${fmt(r.valor)}</td>
+      <td class="money ${r.saldo>=0?'money-green':'money-red'}">${fmt(r.saldo)}</td>
+    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:32px;">Nenhuma transação no período</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRODUTOS
+// ═══════════════════════════════════════════════════════════
+function loadProdutos() {
+  const s = document.getElementById('search-produtos').value;
+  const cat = document.getElementById('filter-produtos-cat').value;
+  let sql = "SELECT * FROM produtos WHERE ativo=1";
+  const params = [];
+  if (s) { sql += " AND (nome LIKE ? OR codigo LIKE ? OR categoria LIKE ?)"; params.push('%'+s+'%','%'+s+'%','%'+s+'%'); }
+  if (cat) { sql += " AND categoria=?"; params.push(cat); }
+  sql += " ORDER BY nome";
+  const rows = query(sql, params);
+  const low = rows.filter(r => r.estoque_atual <= r.estoque_minimo);
+  if (low.length > 0) {
+    const a = document.getElementById('alert-estoque');
+    a.style.display = 'block';
+    a.textContent = `⚠ Atenção: ${low.length} produto(s) com estoque abaixo do mínimo: ${low.map(p=>p.nome).join(', ')}`;
+  }
+  // Populate category filter
+  const cats = [...new Set(rows.map(r=>r.categoria).filter(Boolean))];
+  const catSel = document.getElementById('filter-produtos-cat');
+  const cur = catSel.value;
+  catSel.innerHTML = '<option value="">Todas</option>' + cats.map(c=>`<option ${c===cur?'selected':''}>${c}</option>`).join('');
+
+  document.getElementById('tb-produtos').innerHTML = rows.length ? rows.map(r => {
+    const margem = r.preco_venda > 0 ? ((r.preco_venda - r.custo) / r.preco_venda * 100).toFixed(1) : 0;
+    const low = r.estoque_atual <= r.estoque_minimo;
+    return `<tr>
+      <td><code style="font-size:11px;color:var(--text2);">${r.codigo}</code></td>
+      <td><div style="font-weight:500;">${r.nome}</div><div style="font-size:11px;color:var(--text3);">${r.descricao||''}</div></td>
+      <td><span class="badge badge-purple">${r.categoria||'—'}</span></td>
+      <td class="${low?'stock-low':'stock-ok'}" style="font-weight:600;">${r.estoque_atual} ${r.unidade} ${low?'⚠':''}</td>
+      <td style="color:var(--text2);">${r.estoque_minimo}</td>
+      <td class="money">${fmt(r.custo)}</td>
+      <td class="money money-green">${fmt(r.preco_venda)}</td>
+      <td><span class="badge badge-amber">${margem}%</span></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('produto-edit',${r.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduto(${r.id})">✕</button>
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:32px;">Nenhum produto encontrado</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOVIMENTAÇÕES
+// ═══════════════════════════════════════════════════════════
+function filterMov(type, el) {
+  movFilterType = type;
+  document.querySelectorAll('#mov-filter .pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  loadMovimentos();
+}
+function loadMovimentos() {
+  let sql = "SELECT m.*, p.nome as prod_nome, p.codigo FROM movimentos_estoque m JOIN produtos p ON m.produto_id=p.id";
+  const params = [];
+  if (movFilterType !== 'todos') { sql += " WHERE m.tipo=?"; params.push(movFilterType); }
+  sql += " ORDER BY m.data_hora DESC";
+  const rows = query(sql, params);
+  const typeBadge = t => t==='entrada'?'badge-green':t==='saida'?'badge-red':'badge-amber';
+  document.getElementById('tb-movimentos').innerHTML = rows.length ? rows.map(r => {
+    const total = r.tipo === 'entrada' ? r.quantidade * r.custo_unitario : 0;
+    return `<tr>
+      <td style="font-size:12px;color:var(--text2);">${r.data_hora}</td>
+      <td><div style="font-weight:500;">${r.prod_nome}</div><code style="font-size:11px;color:var(--text3);">${r.codigo}</code></td>
+      <td><span class="badge ${typeBadge(r.tipo)}">${r.tipo}</span></td>
+      <td style="font-weight:600;color:${r.tipo==='entrada'?'var(--green)':'var(--red)'};">${r.tipo==='saida'?'-':'+'} ${r.quantidade}</td>
+      <td class="money">${r.custo_unitario > 0 ? fmt(r.custo_unitario) : '—'}</td>
+      <td class="money">${total > 0 ? fmt(total) : '—'}</td>
+      <td style="color:var(--text2);">${r.usuario}</td>
+      <td style="color:var(--text2);font-size:12px;">${r.observacao||'—'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:32px;">Nenhuma movimentação</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLIENTES
+// ═══════════════════════════════════════════════════════════
+function loadClientes() {
+  const s = document.getElementById('search-clientes').value;
+  let sql = "SELECT c.*, COALESCE((SELECT SUM(t.valor) FROM transacoes t WHERE t.cliente_id=c.id AND t.tipo='receita' AND t.status='pago'),0) as total_compras FROM clientes c";
+  const params = [];
+  if (s) { sql += " WHERE (c.nome LIKE ? OR c.cpf_cnpj LIKE ? OR c.telefone LIKE ?)"; params.push('%'+s+'%','%'+s+'%','%'+s+'%'); }
+  sql += " ORDER BY c.nome";
+  const rows = query(sql, params);
+  document.getElementById('tb-clientes').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td><div style="font-weight:500;">${r.nome}</div><div style="font-size:11px;color:var(--text3);">${r.cidade||''}</div></td>
+      <td style="font-family:monospace;font-size:12px;">${r.cpf_cnpj||'—'}</td>
+      <td style="color:var(--accent);">${r.email||'—'}</td>
+      <td>${r.telefone||'—'}</td>
+      <td>${r.cidade||'—'}</td>
+      <td class="money money-green">${fmt(r.total_compras)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCliente(${r.id})">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px;">Nenhum cliente encontrado</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORNECEDORES
+// ═══════════════════════════════════════════════════════════
+function loadFornecedores() {
+  const s = document.getElementById('search-fornecedores').value;
+  let sql = "SELECT f.*, COALESCE((SELECT SUM(t.valor) FROM transacoes t WHERE t.fornecedor_id=f.id AND t.status='pago'),0) as total FROM fornecedores f";
+  const params = [];
+  if (s) { sql += " WHERE (f.razao_social LIKE ? OR f.cnpj LIKE ?)"; params.push('%'+s+'%','%'+s+'%'); }
+  sql += " ORDER BY f.razao_social";
+  const rows = query(sql, params);
+  document.getElementById('tb-fornecedores').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td><div style="font-weight:500;">${r.razao_social}</div></td>
+      <td style="font-family:monospace;font-size:12px;">${r.cnpj||'—'}</td>
+      <td>${r.contato||'—'}</td>
+      <td style="color:var(--accent);">${r.email||'—'}</td>
+      <td>${r.telefone||'—'}</td>
+      <td class="money money-red">${fmt(r.total)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteFornecedor(${r.id})">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px;">Nenhum fornecedor</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RELATÓRIOS
+// ═══════════════════════════════════════════════════════════
+function loadRelatorios() {
+  // DRE
+  const rec = query("SELECT COALESCE(SUM(valor),0) as v FROM transacoes WHERE tipo='receita' AND status='pago'")[0].v;
+  const desp = query("SELECT COALESCE(SUM(valor),0) as v FROM transacoes WHERE tipo='despesa' AND status='pago'")[0].v;
+  const resultado = rec - desp;
+  document.getElementById('rel-dre').innerHTML = `
+    <div class="summary-row"><span>Receita Bruta</span><span class="money money-green">${fmt(rec)}</span></div>
+    <div class="summary-row"><span>(-) Despesas Totais</span><span class="money money-red">(${fmt(desp)})</span></div>
+    <div class="summary-total"><span>Resultado Líquido</span><span class="money ${resultado>=0?'money-green':'money-red'}">${fmt(resultado)}</span></div>
+    <div class="summary-row" style="margin-top:12px;"><span>Margem Líquida</span><span class="${resultado>=0?'money-green':'money-red'}">${rec>0?(resultado/rec*100).toFixed(1):0}%</span></div>`;
+
+  // Top produtos
+  const topProds = query("SELECT p.nome, SUM(CASE WHEN m.tipo='saida' THEN m.quantidade ELSE 0 END) as saidas, SUM(CASE WHEN m.tipo='entrada' THEN m.quantidade ELSE 0 END) as entradas FROM movimentos_estoque m JOIN produtos p ON m.produto_id=p.id GROUP BY m.produto_id ORDER BY saidas DESC LIMIT 5");
+  document.getElementById('rel-top-produtos').innerHTML = topProds.length ? topProds.map((p,i) => `
+    <div class="summary-row">
+      <div><span style="color:var(--text3);font-size:12px;">#${i+1}</span> ${p.nome}</div>
+      <div><span class="badge badge-green">+${p.entradas||0}</span> <span class="badge badge-red">-${p.saidas||0}</span></div>
+    </div>`).join('') : '<div class="empty-state"><p>Sem dados</p></div>';
+
+  // Charts
+  const despCats = query("SELECT categoria, SUM(valor) as total FROM transacoes WHERE tipo='despesa' AND status='pago' GROUP BY categoria");
+  const recCats = query("SELECT categoria, SUM(valor) as total FROM transacoes WHERE tipo='receita' AND status='pago' GROUP BY categoria");
+  const colors2 = ['#ef4444','#f59e0b','#8b5cf6','#3b82f6','#10b981'];
+  const colors3 = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444'];
+  const ctx1 = document.getElementById('chart-desp-cat').getContext('2d');
+  const ctx2 = document.getElementById('chart-rec-cat').getContext('2d');
+  if (chartDespCat) chartDespCat.destroy();
+  if (chartRecCat) chartRecCat.destroy();
+  chartDespCat = new Chart(ctx1,{type:'pie',data:{labels:despCats.map(c=>c.categoria||'Outras'),datasets:[{data:despCats.map(c=>c.total),backgroundColor:colors2,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b90a0',font:{size:11},boxWidth:12}}}}});
+  chartRecCat = new Chart(ctx2,{type:'pie',data:{labels:recCats.map(c=>c.categoria||'Outras'),datasets:[{data:recCats.map(c=>c.total),backgroundColor:colors3,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b90a0',font:{size:11},boxWidth:12}}}}});
+
+  // Audit
+  const audit = query("SELECT * FROM audit_log ORDER BY id DESC LIMIT 30");
+  document.getElementById('tb-audit').innerHTML = audit.map(a => `
+    <tr>
+      <td style="font-size:11px;color:var(--text2);">${a.data_hora}</td>
+      <td><span class="badge badge-blue">${a.usuario}</span></td>
+      <td style="font-weight:500;">${a.acao}</td>
+      <td style="color:var(--text2);">${a.tabela||'—'}</td>
+      <td style="color:var(--text3);font-size:12px;">${a.detalhe||'—'}</td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════
+function openModal(type, id=null) {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  const clientes = query("SELECT id, nome FROM clientes ORDER BY nome");
+  const fornecedores = query("SELECT id, razao_social FROM fornecedores ORDER BY razao_social");
+  const produtos = query("SELECT id, codigo, nome, estoque_atual FROM produtos WHERE ativo=1 ORDER BY nome");
+
+  const cliOpts = clientes.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
+  const fornOpts = fornecedores.map(f=>`<option value="${f.id}">${f.razao_social}</option>`).join('');
+  const prodOpts = produtos.map(p=>`<option value="${p.id}" data-estoque="${p.estoque_atual}">[${p.codigo}] ${p.nome} — Estoque: ${p.estoque_atual}</option>`).join('');
+
+  if (type === 'receita') {
+    content.innerHTML = `<h3>📈 Nova Receita</h3>
+      <div class="form-group"><label>Descrição*</label><input id="m-desc" placeholder="Descrição da receita"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor (R$)*</label><input id="m-valor" type="number" step="0.01" min="0.01" placeholder="0,00"/></div>
+        <div class="form-group"><label>Data*</label><input id="m-data" type="date" value="${new Date().toISOString().split('T')[0]}"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Categoria</label><select id="m-cat"><option>Vendas</option><option>Serviços</option><option>Investimentos</option><option>Outras</option></select></div>
+        <div class="form-group"><label>Status</label><select id="m-status"><option value="pago">Pago</option><option value="pendente">Pendente</option></select></div>
+      </div>
+      <div class="form-group"><label>Cliente</label><select id="m-cli"><option value="">Nenhum</option>${cliOpts}</select></div>
+      <div class="form-group"><label>Observação</label><textarea id="m-obs" placeholder="Observações..."></textarea></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-blue" onclick="saveReceita()">Salvar Receita</button>
+      </div>`;
+  } else if (type === 'despesa') {
+    content.innerHTML = `<h3>📉 Nova Despesa</h3>
+      <div class="form-group"><label>Descrição*</label><input id="m-desc" placeholder="Descrição da despesa"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor (R$)*</label><input id="m-valor" type="number" step="0.01" min="0.01" placeholder="0,00"/></div>
+        <div class="form-group"><label>Data*</label><input id="m-data" type="date" value="${new Date().toISOString().split('T')[0]}"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Categoria</label><select id="m-cat"><option>Fornecedores</option><option>Folha de Pagamento</option><option>Aluguel</option><option>Utilities</option><option>Marketing</option><option>Outras</option></select></div>
+        <div class="form-group"><label>Status</label><select id="m-status"><option value="pago">Pago</option><option value="pendente">Pendente</option></select></div>
+      </div>
+      <div class="form-group"><label>Fornecedor</label><select id="m-forn"><option value="">Nenhum</option>${fornOpts}</select></div>
+      <div class="form-group"><label>Observação</label><textarea id="m-obs" placeholder="Observações..."></textarea></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-blue" onclick="saveDespesa()">Salvar Despesa</button>
+      </div>`;
+  } else if (type === 'produto' || type === 'produto-edit') {
+    let p = { codigo:'', nome:'', categoria:'', descricao:'', estoque_atual:0, estoque_minimo:5, custo:0, preco_venda:0, unidade:'un' };
+    if (type === 'produto-edit' && id) {
+      const res = query("SELECT * FROM produtos WHERE id=?", [id]);
+      if (res.length) p = res[0];
+    }
+    content.innerHTML = `<h3>📦 ${type==='produto'?'Novo Produto':'Editar Produto'}</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Código*</label><input id="m-codigo" value="${p.codigo}" placeholder="PRD001" ${type==='produto-edit'?'readonly':''}></div>
+        <div class="form-group"><label>Unidade</label><select id="m-unidade"><option ${p.unidade==='un'?'selected':''}>un</option><option ${p.unidade==='kg'?'selected':''}>kg</option><option ${p.unidade==='lt'?'selected':''}>lt</option><option ${p.unidade==='cx'?'selected':''}>cx</option></select></div>
+      </div>
+      <div class="form-group"><label>Nome*</label><input id="m-nome" value="${p.nome}" placeholder="Nome do produto"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Categoria</label><input id="m-cat" value="${p.categoria||''}" placeholder="Ex: Informática"/></div>
+        <div class="form-group"><label>Estoque Mínimo</label><input id="m-estoque-min" type="number" value="${p.estoque_minimo}" min="0"/></div>
+      </div>
+      <div class="form-row cols3">
+        <div class="form-group"><label>Custo (R$)</label><input id="m-custo" type="number" step="0.01" value="${p.custo}" min="0"/></div>
+        <div class="form-group"><label>Preço Venda (R$)</label><input id="m-preco" type="number" step="0.01" value="${p.preco_venda}" min="0"/></div>
+        <div class="form-group"><label>Estoque Inicial</label><input id="m-estoque" type="number" value="${p.estoque_atual}" min="0" ${type==='produto-edit'?'disabled':''}></div>
+      </div>
+      <div class="form-group"><label>Descrição</label><textarea id="m-desc" placeholder="Detalhes do produto...">${p.descricao||''}</textarea></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-blue" onclick="saveProduto(${type==='produto-edit'?id:null})">${type==='produto'?'Cadastrar':'Salvar Alterações'}</button>
+      </div>`;
+  } else if (type === 'entrada' || type === 'saida') {
+    const isEntrada = type === 'entrada';
+    content.innerHTML = `<h3>${isEntrada?'📥 Entrada':'📤 Saída'} de Estoque</h3>
+      <div class="form-group"><label>Produto*</label><select id="m-prod" onchange="updateMaxQty(this)">${prodOpts}</select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantidade*</label><input id="m-qty" type="number" min="0.01" step="0.01" placeholder="0" oninput="calcTotal()"/></div>
+        <div class="form-group"><label>${isEntrada?'Custo Unitário (R$)':'Preço Unitário (R$)'}</label><input id="m-custo-unit" type="number" step="0.01" min="0" placeholder="0,00" oninput="calcTotal()"/></div>
+      </div>
+      ${!isEntrada?`<div id="qty-warning" class="alert alert-warning" style="display:none;">Quantidade maior que o estoque disponível!</div>`:''}
+      <div class="form-group"><label>Total Estimado</label><div id="m-total" style="font-family:monospace;font-size:16px;color:var(--green);padding:8px 0;">R$ 0,00</div></div>
+      <div class="form-group"><label>Observação</label><textarea id="m-obs" placeholder="${isEntrada?'Nota fiscal, fornecedor...':'Motivo da saída...'}"></textarea></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn ${isEntrada?'btn-success':'btn-danger'}" onclick="saveMovimento('${type}')">Registrar ${isEntrada?'Entrada':'Saída'}</button>
+      </div>`;
+  } else if (type === 'cliente') {
+    content.innerHTML = `<h3>👤 Novo Cliente</h3>
+      <div class="form-group"><label>Nome*</label><input id="m-nome" placeholder="Nome completo ou Razão Social"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>CPF/CNPJ</label><input id="m-cpf" placeholder="000.000.000-00"/></div>
+        <div class="form-group"><label>Telefone</label><input id="m-tel" placeholder="(11) 99999-9999"/></div>
+      </div>
+      <div class="form-group"><label>Email</label><input id="m-email" type="email" placeholder="email@exemplo.com"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Endereço</label><input id="m-end" placeholder="Rua, número"/></div>
+        <div class="form-group"><label>Cidade</label><input id="m-cidade" placeholder="Cidade"/></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-blue" onclick="saveCliente()">Cadastrar Cliente</button>
+      </div>`;
+  } else if (type === 'fornecedor') {
+    content.innerHTML = `<h3>🚛 Novo Fornecedor</h3>
+      <div class="form-group"><label>Razão Social*</label><input id="m-nome" placeholder="Nome da empresa"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>CNPJ</label><input id="m-cnpj" placeholder="00.000.000/0001-00"/></div>
+        <div class="form-group"><label>Contato</label><input id="m-contato" placeholder="Nome do responsável"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input id="m-email" type="email" placeholder="email@empresa.com"/></div>
+        <div class="form-group"><label>Telefone</label><input id="m-tel" placeholder="(11) 4444-5555"/></div>
+      </div>
+      <div class="form-group"><label>Endereço</label><input id="m-end" placeholder="Endereço completo"/></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-blue" onclick="saveFornecedor()">Cadastrar Fornecedor</button>
+      </div>`;
+  }
+  overlay.classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-overlay')) closeModal(); });
+
+function calcTotal() {
+  const q = parseFloat(document.getElementById('m-qty')?.value||0);
+  const c = parseFloat(document.getElementById('m-custo-unit')?.value||0);
+  const t = document.getElementById('m-total');
+  if (t) t.textContent = fmt(q*c);
+}
+
+function updateMaxQty(sel) {
+  const warn = document.getElementById('qty-warning');
+  if (!warn) return;
+  const estoque = parseFloat(sel.options[sel.selectedIndex].dataset.estoque || 0);
+  const qty = parseFloat(document.getElementById('m-qty')?.value||0);
+  if (warn && qty > estoque) warn.style.display='block'; else if(warn) warn.style.display='none';
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVES
+// ═══════════════════════════════════════════════════════════
+function saveReceita() {
+  const desc = document.getElementById('m-desc').value.trim();
+  const valor = parseFloat(document.getElementById('m-valor').value);
+  const data = document.getElementById('m-data').value;
+  const cat = document.getElementById('m-cat').value;
+  const status = document.getElementById('m-status').value;
+  const cli = document.getElementById('m-cli').value || null;
+  const obs = document.getElementById('m-obs').value;
+  if (!desc || !valor || !data) { toast('Preencha os campos obrigatórios.', 'error'); return; }
+  exec('INSERT INTO transacoes(tipo,descricao,categoria,valor,data,cliente_id,status,observacao,criado_por) VALUES(?,?,?,?,?,?,?,?,?)',
+    ['receita', desc, cat, valor, data, cli, status, obs, currentUser.username]);
+  auditLog(currentUser.username, 'INSERT_RECEITA', 'transacoes', `${desc} — ${fmt(valor)}`);
+  closeModal(); loadReceitas(); refreshDashboard();
+  toast('Receita registrada com sucesso!');
+}
+
+function saveDespesa() {
+  const desc = document.getElementById('m-desc').value.trim();
+  const valor = parseFloat(document.getElementById('m-valor').value);
+  const data = document.getElementById('m-data').value;
+  const cat = document.getElementById('m-cat').value;
+  const status = document.getElementById('m-status').value;
+  const forn = document.getElementById('m-forn').value || null;
+  const obs = document.getElementById('m-obs').value;
+  if (!desc || !valor || !data) { toast('Preencha os campos obrigatórios.', 'error'); return; }
+  exec('INSERT INTO transacoes(tipo,descricao,categoria,valor,data,fornecedor_id,status,observacao,criado_por) VALUES(?,?,?,?,?,?,?,?,?)',
+    ['despesa', desc, cat, valor, data, forn, status, obs, currentUser.username]);
+  auditLog(currentUser.username, 'INSERT_DESPESA', 'transacoes', `${desc} — ${fmt(valor)}`);
+  closeModal(); loadDespesas(); refreshDashboard();
+  toast('Despesa registrada com sucesso!');
+}
+
+function saveProduto(id) {
+  const codigo = document.getElementById('m-codigo').value.trim();
+  const nome = document.getElementById('m-nome').value.trim();
+  const cat = document.getElementById('m-cat').value.trim();
+  const desc = document.getElementById('m-desc').value.trim();
+  const estoque = parseFloat(document.getElementById('m-estoque')?.value||0);
+  const estoqueMin = parseFloat(document.getElementById('m-estoque-min').value||5);
+  const custo = parseFloat(document.getElementById('m-custo').value||0);
+  const preco = parseFloat(document.getElementById('m-preco').value||0);
+  const unidade = document.getElementById('m-unidade').value;
+  if (!codigo || !nome) { toast('Código e nome são obrigatórios.', 'error'); return; }
+  if (id) {
+    exec('UPDATE produtos SET nome=?,categoria=?,descricao=?,estoque_minimo=?,custo=?,preco_venda=?,unidade=? WHERE id=?',
+      [nome,cat,desc,estoqueMin,custo,preco,unidade,id]);
+    auditLog(currentUser.username, 'UPDATE_PRODUTO', 'produtos', `ID:${id} — ${nome}`);
+    toast('Produto atualizado!');
+  } else {
+    try {
+      exec('INSERT INTO produtos(codigo,nome,categoria,descricao,estoque_atual,estoque_minimo,custo,preco_venda,unidade) VALUES(?,?,?,?,?,?,?,?,?)',
+        [codigo,nome,cat,desc,estoque,estoqueMin,custo,preco,unidade]);
+      if (estoque > 0) {
+        const pid = query("SELECT id FROM produtos WHERE codigo=?", [codigo])[0]?.id;
+        exec('INSERT INTO movimentos_estoque(produto_id,tipo,quantidade,custo_unitario,usuario,observacao) VALUES(?,?,?,?,?,?)',
+          [pid,'entrada',estoque,custo,currentUser.username,'Estoque inicial']);
+      }
+      auditLog(currentUser.username, 'INSERT_PRODUTO', 'produtos', `${codigo} — ${nome}`);
+      toast('Produto cadastrado!');
+    } catch(e) { toast('Código já existe!', 'error'); return; }
+  }
+  closeModal(); loadProdutos();
+}
+
+function saveMovimento(tipo) {
+  const prodSel = document.getElementById('m-prod');
+  const pid = parseInt(prodSel.value);
+  const qty = parseFloat(document.getElementById('m-qty').value);
+  const custo = parseFloat(document.getElementById('m-custo-unit').value||0);
+  const obs = document.getElementById('m-obs').value;
+  if (!pid || !qty || qty <= 0) { toast('Selecione produto e quantidade.', 'error'); return; }
+  if (tipo === 'saida') {
+    const prod = query("SELECT estoque_atual FROM produtos WHERE id=?", [pid])[0];
+    if (qty > prod.estoque_atual) { toast('Quantidade maior que o estoque!', 'error'); return; }
+    exec("UPDATE produtos SET estoque_atual=estoque_atual-? WHERE id=?", [qty, pid]);
+  } else {
+    exec("UPDATE produtos SET estoque_atual=estoque_atual+? WHERE id=?", [qty, pid]);
+  }
+  exec('INSERT INTO movimentos_estoque(produto_id,tipo,quantidade,custo_unitario,usuario,observacao) VALUES(?,?,?,?,?,?)',
+    [pid, tipo, qty, custo, currentUser.username, obs]);
+  auditLog(currentUser.username, `ESTOQUE_${tipo.toUpperCase()}`, 'movimentos_estoque', `Prod ID:${pid} qty:${qty}`);
+  closeModal(); loadMovimentos(); loadProdutos();
+  toast(`${tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada!`);
+}
+
+function saveCliente() {
+  const nome = document.getElementById('m-nome').value.trim();
+  if (!nome) { toast('Nome é obrigatório.', 'error'); return; }
+  exec('INSERT INTO clientes(nome,cpf_cnpj,telefone,email,endereco,cidade) VALUES(?,?,?,?,?,?)',
+    [nome, document.getElementById('m-cpf').value, document.getElementById('m-tel').value, document.getElementById('m-email').value, document.getElementById('m-end').value, document.getElementById('m-cidade').value]);
+  auditLog(currentUser.username, 'INSERT_CLIENTE', 'clientes', nome);
+  closeModal(); loadClientes();
+  toast('Cliente cadastrado!');
+}
+
+function saveFornecedor() {
+  const nome = document.getElementById('m-nome').value.trim();
+  if (!nome) { toast('Razão social é obrigatória.', 'error'); return; }
+  exec('INSERT INTO fornecedores(razao_social,cnpj,contato,email,telefone,endereco) VALUES(?,?,?,?,?,?)',
+    [nome, document.getElementById('m-cnpj').value, document.getElementById('m-contato').value, document.getElementById('m-email').value, document.getElementById('m-tel').value, document.getElementById('m-end').value]);
+  auditLog(currentUser.username, 'INSERT_FORNECEDOR', 'fornecedores', nome);
+  closeModal(); loadFornecedores();
+  toast('Fornecedor cadastrado!');
+}
+
+// ═══════════════════════════════════════════════════════════
+// DELETES (com verificação de permissão)
+// ═══════════════════════════════════════════════════════════
+function deleteTransacao(id, tipo) {
+  if (!confirm(`Excluir esta ${tipo}? Esta ação não pode ser desfeita.`)) return;
+  exec('DELETE FROM transacoes WHERE id=?', [id]);
+  auditLog(currentUser.username, `DELETE_${tipo.toUpperCase()}`, 'transacoes', `ID:${id}`);
+  if (tipo === 'receita') loadReceitas(); else loadDespesas();
+  refreshDashboard();
+  toast(`${tipo} excluída.`);
+}
+
+function deleteProduto(id) {
+  if (currentUser.role !== 'admin') { toast('Apenas administradores podem excluir produtos.', 'error'); return; }
+  if (!confirm('Excluir produto? Movimentações serão preservadas.')) return;
+  exec('UPDATE produtos SET ativo=0 WHERE id=?', [id]);
+  auditLog(currentUser.username, 'DELETE_PRODUTO', 'produtos', `ID:${id}`);
+  loadProdutos();
+  toast('Produto removido.');
+}
+
+function deleteCliente(id) {
+  if (!confirm('Remover cliente?')) return;
+  exec('DELETE FROM clientes WHERE id=?', [id]);
+  auditLog(currentUser.username, 'DELETE_CLIENTE', 'clientes', `ID:${id}`);
+  loadClientes();
+  toast('Cliente removido.');
+}
+
+function deleteFornecedor(id) {
+  if (!confirm('Remover fornecedor?')) return;
+  exec('DELETE FROM fornecedores WHERE id=?', [id]);
+  auditLog(currentUser.username, 'DELETE_FORNECEDOR', 'fornecedores', `ID:${id}`);
+  loadFornecedores();
+  toast('Fornecedor removido.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+
+// ── MODO DEMONSTRAÇÃO ── Login comentado para aprovação do cliente
+// Para reativar a autenticação, descomente a linha abaixo e comente o bloco DEMO:
+// document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ── INÍCIO BLOCO DEMO ──
+currentUser = { username: 'admin', name: 'Administrador', role: 'admin', initials: 'AD' };
+document.getElementById('user-name-display').textContent = 'Administrador';
+document.getElementById('user-role-display').textContent = 'Administrador';
+document.getElementById('user-avatar').textContent = 'AD';
+document.getElementById('auth-screen').style.display = 'none';
+document.getElementById('app').style.display = 'flex';
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+initDB().then(() => {
+  console.log('[FinControl] Banco SQL inicializado — Modo Demonstração.');
+  refreshDashboard();
+});
+// ── FIM BLOCO DEMO ──
+</script>
+</body>
+</html>
