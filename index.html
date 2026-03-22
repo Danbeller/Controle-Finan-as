@@ -26,7 +26,7 @@
     <div class="form-group"><label>Usuário</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"/></div>
     <div class="form-group"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/></div>
     <button class="btn-primary" onclick="doLogin()">Entrar no Sistema</button>
-    <p class="auth-hint">Demo: admin / admin123 &nbsp;|&nbsp; gerente / gerente123</p>
+    <p class="auth-hint">Use as credenciais fornecidas pelo administrador</p>
   </div>
 </div>
 
@@ -39,6 +39,13 @@
       <span>Sistema Empresarial</span>
     </div>
     <div class="sidebar-nav">
+      <!-- Super Admin (visível apenas para superadmin) -->
+      <div class="nav-section" id="nav-section-superadmin" style="display:none;">Sistema</div>
+      <div class="nav-item" id="nav-superadmin" style="display:none;" onclick="navigate('superadmin')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Empresas / Clientes
+      </div>
+
       <div class="nav-section">Principal</div>
       <div class="nav-item active" onclick="navigate('dashboard')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -97,8 +104,28 @@
   <!-- MAIN -->
   <main class="main">
 
+    <!-- SUPERADMIN -->
+    <div class="page" id="page-superadmin">
+      <div class="page-header">
+        <div class="page-title">
+          <h2>🏢 Gestão de Empresas</h2>
+          <p>Cadastre e gerencie os clientes do sistema</p>
+        </div>
+        <button class="btn btn-blue" onclick="openSANovaEmpresa()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova Empresa
+        </button>
+      </div>
+      <div class="alert alert-warning" style="margin-bottom:16px;">
+        <strong>⚡ Super Admin</strong> — Você tem acesso total ao sistema. Cada empresa tem banco de dados isolado.
+      </div>
+      <div class="card" style="padding:0;">
+        <div id="sa-empresas"><div class="empty-state"><p>Carregando empresas...</p></div></div>
+      </div>
+    </div>
+
     <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
+    <div class="page" id="page-dashboard">
       <div class="page-header">
         <div class="page-title"><h2>Dashboard</h2><p>Visão geral do negócio — <span id="today-date"></span></p></div>
         <button class="btn btn-ghost btn-sm" onclick="refreshDashboard()">

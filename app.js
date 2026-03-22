@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// FinControl Pro — Frontend
-// Conectado ao backend FastAPI + SQLite (.db)
+// FinControl Pro — Frontend Multi-Tenant
 // ═══════════════════════════════════════════════════════════
 
 const API = window.location.origin.includes('localhost') ? 'http://localhost:8080' : '';
@@ -28,8 +27,9 @@ async function api(method, path, body = null) {
   return res.status === 204 ? null : res.json();
 }
 
-async function apiForm(path, formData) {
-  const res = await fetch(API + path, { method: 'POST', body: formData });
+async function apiForm(path, formData, extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  const res = await fetch(API + path, { method: 'POST', body: formData, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Erro' }));
     throw new Error(err.detail || 'Erro');
@@ -80,49 +80,42 @@ function doLogout() {
 function initApp() {
   document.getElementById('user-name-display').textContent = currentUser.nome;
   document.getElementById('user-role-display').textContent =
-    currentUser.role === 'admin' ? 'Administrador' :
-    currentUser.role === 'gerente' ? 'Gerente' : 'Operador';
+    currentUser.role === 'superadmin' ? 'Super Admin' :
+    currentUser.role === 'admin'      ? 'Administrador' :
+    currentUser.role === 'gerente'    ? 'Gerente' : 'Operador';
   document.getElementById('user-avatar').textContent =
     currentUser.nome.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display         = 'flex';
   document.getElementById('today-date').textContent    =
     new Date().toLocaleDateString('pt-BR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-  navigate('dashboard');
+
+  // Exibe ou oculta itens de nav conforme role
+  const superNavItem = document.getElementById('nav-superadmin');
+  if (superNavItem) {
+    superNavItem.style.display = currentUser.role === 'superadmin' ? 'flex' : 'none';
+  }
+  const superNavSection = document.getElementById('nav-section-superadmin');
+  if (superNavSection) {
+    superNavSection.style.display = currentUser.role === 'superadmin' ? 'block' : 'none';
+  }
+
+  if (currentUser.role === 'superadmin') {
+    navigate('superadmin');
+  } else {
+    navigate('dashboard');
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  // ── LOGIN DESATIVADO PARA TESTES ──────────────────────────
-  // Para reativar o login, comente o bloco abaixo (AUTO-LOGIN)
-  // e descomente o bloco original (VERIFICAR SESSÃO SALVA).
-
-  // AUTO-LOGIN como admin (bypass da tela de login)
-  autoLoginAdmin();
-
-  // ── VERIFICAR SESSÃO SALVA (login normal) ─────────────────
-  // const savedToken = localStorage.getItem('fincontrol_token');
-  // const savedUser  = localStorage.getItem('fincontrol_user');
-  // if (savedToken && savedUser) {
-  //   authToken   = savedToken;
-  //   currentUser = JSON.parse(savedUser);
-  //   initApp();
-  // }
-});
-
-// Auto-login silencioso como admin (usado quando login está desativado)
-async function autoLoginAdmin() {
-  try {
-    const form = new FormData();
-    form.append('username', 'admin');
-    form.append('password', 'admin123');
-    const data  = await apiForm('/auth/login', form);
-    authToken   = data.access_token;
-    currentUser = data.usuario;
+  const savedToken = localStorage.getItem('fincontrol_token');
+  const savedUser  = localStorage.getItem('fincontrol_user');
+  if (savedToken && savedUser) {
+    authToken   = savedToken;
+    currentUser = JSON.parse(savedUser);
     initApp();
-  } catch (e) {
-    console.error('Auto-login falhou:', e);
   }
-}
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const passEl = document.getElementById('login-pass');
@@ -154,6 +147,7 @@ function navigate(page) {
     clientes:     loadClientes,
     fornecedores: loadFornecedores,
     relatorios:   loadRelatorios,
+    superadmin:   loadSuperAdmin,
   };
   if (loaders[page]) loaders[page]();
 }
@@ -184,6 +178,217 @@ function toast(msg, type = 'success') {
   el.innerHTML = icon + msg;
   t.appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUPERADMIN — PAINEL DE EMPRESAS
+// ═══════════════════════════════════════════════════════════
+async function loadSuperAdmin() {
+  const rows = await api('GET', '/superadmin/empresas') || [];
+  const container = document.getElementById('sa-empresas');
+  if (!container) return;
+
+  if (!rows.length) {
+    container.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><p>Nenhuma empresa cadastrada ainda.<br>Clique em "Nova Empresa" para começar.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Empresa</th><th>Slug / URL</th><th>Usuários</th><th>Transações</th><th>Status</th><th>Criado em</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><div style="font-weight:600;">${r.nome}</div></td>
+              <td><code style="font-size:11px;color:var(--accent);">${r.slug}</code></td>
+              <td>${r.total_usuarios}</td>
+              <td>${r.total_transacoes}</td>
+              <td><span class="badge ${r.ativo ? 'badge-green' : 'badge-red'}">${r.ativo ? 'Ativo' : 'Inativo'}</span></td>
+              <td style="font-size:12px;color:var(--text2);">${fmtDate(r.criado_em)}</td>
+              <td style="display:flex;gap:6px;">
+                <button class="btn btn-ghost btn-sm" onclick="openSAUsuarios('${r.slug}','${r.nome}')">Usuários</button>
+                <button class="btn btn-ghost btn-sm" onclick="openSAEditEmpresa('${r.slug}','${r.nome}',${r.ativo})">Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteSAEmpresa('${r.slug}','${r.nome}')">✕</button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function openSANovaEmpresa() {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `
+    <h3>🏢 Nova Empresa / Cliente</h3>
+    <div class="form-group"><label>Nome da Empresa*</label><input id="sa-nome" placeholder="Ex: Empresa XYZ Ltda"/></div>
+    <div class="form-group">
+      <label>Slug (identificador único)*</label>
+      <input id="sa-slug" placeholder="ex: empresa-xyz" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_-]/g,'')"/>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Apenas letras minúsculas, números, hífen e underscore. Não pode ser alterado depois.</div>
+    </div>
+    <hr class="divider"/>
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;">👤 Admin da Empresa</div>
+    <div class="form-group"><label>Nome do Admin*</label><input id="sa-admin-nome" placeholder="Ex: João Silva"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Usuário*</label><input id="sa-admin-user" placeholder="admin" autocomplete="off"/></div>
+      <div class="form-group"><label>Senha*</label><input id="sa-admin-pass" type="password" placeholder="Senha segura" autocomplete="off"/></div>
+    </div>
+    <div class="alert alert-warning" style="margin-top:8px;">
+      ⚠ Anote a senha — ela não pode ser recuperada depois.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveSAEmpresa()">Criar Empresa</button>
+    </div>`;
+  overlay.classList.add('open');
+}
+
+async function saveSAEmpresa() {
+  const nome      = document.getElementById('sa-nome').value.trim();
+  const slug      = document.getElementById('sa-slug').value.trim();
+  const adminNome = document.getElementById('sa-admin-nome').value.trim();
+  const adminUser = document.getElementById('sa-admin-user').value.trim();
+  const adminPass = document.getElementById('sa-admin-pass').value;
+  if (!nome || !slug || !adminNome || !adminUser || !adminPass) {
+    toast('Preencha todos os campos obrigatórios.', 'error'); return;
+  }
+  try {
+    await api('POST', '/superadmin/empresas', {
+      nome, slug,
+      admin_username: adminUser,
+      admin_senha: adminPass,
+      admin_nome: adminNome,
+    });
+    closeModal();
+    loadSuperAdmin();
+    toast(`Empresa "${nome}" criada com sucesso!`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function openSAEditEmpresa(slug, nome, ativo) {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `
+    <h3>✏️ Editar Empresa</h3>
+    <div class="form-group"><label>Nome da Empresa*</label><input id="sa-edit-nome" value="${nome}"/></div>
+    <div class="form-group"><label>Slug</label><input value="${slug}" disabled style="opacity:0.5;cursor:not-allowed;"/></div>
+    <div class="form-group"><label>Status</label>
+      <select id="sa-edit-ativo">
+        <option value="1" ${ativo?'selected':''}>Ativo</option>
+        <option value="0" ${!ativo?'selected':''}>Inativo (bloqueia login)</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="updateSAEmpresa('${slug}')">Salvar</button>
+    </div>`;
+  overlay.classList.add('open');
+}
+
+async function updateSAEmpresa(slug) {
+  const nome  = document.getElementById('sa-edit-nome').value.trim();
+  const ativo = document.getElementById('sa-edit-ativo').value === '1';
+  if (!nome) { toast('Nome é obrigatório.', 'error'); return; }
+  try {
+    await api('PUT', `/superadmin/empresas/${slug}`, { nome, ativo });
+    closeModal(); loadSuperAdmin();
+    toast('Empresa atualizada!');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteSAEmpresa(slug, nome) {
+  if (!confirm(`⚠ ATENÇÃO: Excluir a empresa "${nome}" irá apagar TODOS os dados dela permanentemente.\n\nEsta ação não pode ser desfeita. Confirmar?`)) return;
+  if (!confirm(`Confirmação final: excluir "${nome}" e todos os dados?`)) return;
+  try {
+    await api('DELETE', `/superadmin/empresas/${slug}`);
+    loadSuperAdmin();
+    toast(`Empresa "${nome}" excluída.`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function openSAUsuarios(slug, nomeEmpresa) {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `<h3>👥 Usuários — ${nomeEmpresa}</h3><div id="sa-users-list" style="min-height:100px;"><div class="empty-state"><p>Carregando...</p></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue" onclick="openSANovoUsuario('${slug}')">+ Novo Usuário</button>
+    </div>`;
+  overlay.classList.add('open');
+  await renderSAUsuarios(slug);
+}
+
+async function renderSAUsuarios(slug) {
+  const rows = await api('GET', `/superadmin/empresas/${slug}/usuarios`) || [];
+  const el   = document.getElementById('sa-users-list');
+  if (!el) return;
+  const roleLabel = r => r==='admin'?'Administrador':r==='gerente'?'Gerente':'Operador';
+  const roleBadge = r => r==='admin'?'badge-blue':r==='gerente'?'badge-purple':'badge-amber';
+  el.innerHTML = rows.length
+    ? `<table style="width:100%;">
+        <thead><tr><th>Nome</th><th>Usuário</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows.map(u => `
+          <tr>
+            <td style="font-weight:500;">${u.nome}</td>
+            <td style="font-family:monospace;font-size:12px;">${u.username}</td>
+            <td><span class="badge ${roleBadge(u.role)}">${roleLabel(u.role)}</span></td>
+            <td><span class="badge ${u.ativo?'badge-green':'badge-red'}">${u.ativo?'Ativo':'Inativo'}</span></td>
+            <td>${u.ativo?`<button class="btn btn-danger btn-sm" onclick="removeSAUsuario('${slug}',${u.id},this)">Desativar</button>`:''}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+    : '<div class="empty-state"><p>Nenhum usuário</p></div>';
+}
+
+async function removeSAUsuario(slug, uid, btn) {
+  if (!confirm('Desativar este usuário?')) return;
+  try {
+    await api('DELETE', `/superadmin/empresas/${slug}/usuarios/${uid}`);
+    await renderSAUsuarios(slug);
+    toast('Usuário desativado.');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function openSANovoUsuario(slug) {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `
+    <h3>➕ Novo Usuário</h3>
+    <div class="form-group"><label>Nome*</label><input id="sa-u-nome" placeholder="Nome completo"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Usuário*</label><input id="sa-u-user" placeholder="login" autocomplete="off"/></div>
+      <div class="form-group"><label>Senha*</label><input id="sa-u-pass" type="password" placeholder="Senha" autocomplete="off"/></div>
+    </div>
+    <div class="form-group"><label>Role</label>
+      <select id="sa-u-role">
+        <option value="admin">Administrador</option>
+        <option value="gerente">Gerente</option>
+        <option value="operador" selected>Operador</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="openSAUsuarios('${slug}','')">Voltar</button>
+      <button class="btn btn-blue" onclick="saveSAUsuario('${slug}')">Criar Usuário</button>
+    </div>`;
+  overlay.classList.add('open');
+}
+
+async function saveSAUsuario(slug) {
+  const nome  = document.getElementById('sa-u-nome').value.trim();
+  const user  = document.getElementById('sa-u-user').value.trim();
+  const pass  = document.getElementById('sa-u-pass').value;
+  const role  = document.getElementById('sa-u-role').value;
+  if (!nome || !user || !pass) { toast('Preencha todos os campos.', 'error'); return; }
+  try {
+    await api('POST', `/superadmin/empresas/${slug}/usuarios`, {
+      username: user, senha: pass, nome, role
+    });
+    await openSAUsuarios(slug, '');
+    toast('Usuário criado!');
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════════════════

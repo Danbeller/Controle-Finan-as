@@ -4,7 +4,7 @@ title FinControl Pro
 echo.
 echo  ==========================================
 echo   FinControl Pro - Iniciando...
-echo   Backend FastAPI + SQLite
+echo   Backend FastAPI + SQLite Multi-Tenant
 echo  ==========================================
 echo.
 
@@ -63,19 +63,21 @@ echo  Servidor pronto!
 echo.
 
 :ABRIR
-start "" "%~dp0index.html"
+:: CORRECAO: abre pelo servidor HTTP, nao pelo arquivo direto
+start "" "http://localhost:8080"
 
 echo.
 echo  ==========================================
 echo   Sistema rodando!
 echo.
-echo   API:   http://localhost:8080
-echo   Banco: fincontrol.db
+echo   Acesse: http://localhost:8080
 echo.
-echo   Logins:
-echo     admin    / admin123
-echo     gerente  / gerente123
-echo     operador / op123
+echo   Login Super Admin (voce):
+echo     usuario: superadmin
+echo     senha:   Super@2024!
+echo.
+echo   (Crie empresas pelo painel Super Admin
+echo    apos fazer login)
 echo.
 echo   Feche esta janela para ENCERRAR
 echo  ==========================================
