@@ -92,14 +92,37 @@ function initApp() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  const savedToken = localStorage.getItem('fincontrol_token');
-  const savedUser  = localStorage.getItem('fincontrol_user');
-  if (savedToken && savedUser) {
-    authToken   = savedToken;
-    currentUser = JSON.parse(savedUser);
-    initApp();
-  }
+  // ── LOGIN DESATIVADO PARA TESTES ──────────────────────────
+  // Para reativar o login, comente o bloco abaixo (AUTO-LOGIN)
+  // e descomente o bloco original (VERIFICAR SESSÃO SALVA).
+
+  // AUTO-LOGIN como admin (bypass da tela de login)
+  autoLoginAdmin();
+
+  // ── VERIFICAR SESSÃO SALVA (login normal) ─────────────────
+  // const savedToken = localStorage.getItem('fincontrol_token');
+  // const savedUser  = localStorage.getItem('fincontrol_user');
+  // if (savedToken && savedUser) {
+  //   authToken   = savedToken;
+  //   currentUser = JSON.parse(savedUser);
+  //   initApp();
+  // }
 });
+
+// Auto-login silencioso como admin (usado quando login está desativado)
+async function autoLoginAdmin() {
+  try {
+    const form = new FormData();
+    form.append('username', 'admin');
+    form.append('password', 'admin123');
+    const data  = await apiForm('/auth/login', form);
+    authToken   = data.access_token;
+    currentUser = data.usuario;
+    initApp();
+  } catch (e) {
+    console.error('Auto-login falhou:', e);
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const passEl = document.getElementById('login-pass');
