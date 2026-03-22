@@ -197,7 +197,7 @@ async function loadSuperAdmin() {
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Empresa</th><th>Slug / URL</th><th>Usuários</th><th>Transações</th><th>Status</th><th>Criado em</th><th></th>
+          <th>Empresa</th><th>Slug / URL</th><th>Usuários</th><th>Clientes</th><th>Transações</th><th>Status</th><th>Criado em</th><th></th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -205,6 +205,7 @@ async function loadSuperAdmin() {
               <td><div style="font-weight:600;">${r.nome}</div></td>
               <td><code style="font-size:11px;color:var(--accent);">${r.slug}</code></td>
               <td>${r.total_usuarios}</td>
+              <td>${r.total_clientes}</td>
               <td>${r.total_transacoes}</td>
               <td><span class="badge ${r.ativo ? 'badge-green' : 'badge-red'}">${r.ativo ? 'Ativo' : 'Inativo'}</span></td>
               <td style="font-size:12px;color:var(--text2);">${fmtDate(r.criado_em)}</td>

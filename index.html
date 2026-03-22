@@ -25,6 +25,10 @@
     <div class="auth-error" id="auth-error"></div>
     <div class="form-group"><label>Usuário</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"/></div>
     <div class="form-group"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/></div>
+    <div id="login-slug-box" style="display:none;" class="form-group">
+      <label>Identificador da Empresa (slug)</label>
+      <input type="text" id="login-slug" placeholder="ex: minha-empresa" autocomplete="off"/>
+    </div>
     <button class="btn-primary" onclick="doLogin()">Entrar no Sistema</button>
     <p class="auth-hint">Use as credenciais fornecidas pelo administrador</p>
   </div>

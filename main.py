@@ -372,11 +372,13 @@ async def list_empresas(user=Depends(get_current_user)):
         db = db_path_for(emp['slug'])
         if os.path.exists(db):
             with get_tenant_db(emp['slug']) as c:
-                emp['total_usuarios'] = c.execute("SELECT COUNT(*) FROM usuarios WHERE ativo=1").fetchone()[0]
+                emp['total_usuarios']   = c.execute("SELECT COUNT(*) FROM usuarios WHERE ativo=1").fetchone()[0]
                 emp['total_transacoes'] = c.execute("SELECT COUNT(*) FROM transacoes").fetchone()[0]
+                emp['total_clientes']   = c.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
         else:
-            emp['total_usuarios'] = 0
+            emp['total_usuarios']   = 0
             emp['total_transacoes'] = 0
+            emp['total_clientes']   = 0
     return rows
 
 @app.post("/superadmin/empresas", status_code=201)
