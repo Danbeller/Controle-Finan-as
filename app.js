@@ -100,6 +100,12 @@ function initApp() {
     superNavSection.style.display = currentUser.role === 'superadmin' ? 'block' : 'none';
   }
 
+  // Oculta botão de backup para superadmin (ele não tem dados de empresa)
+  const backupWrap = document.getElementById('backup-btn-wrap');
+  if (backupWrap) {
+    backupWrap.style.display = currentUser.role === 'superadmin' ? 'none' : 'block';
+  }
+
   if (currentUser.role === 'superadmin') {
     navigate('superadmin');
   } else {
@@ -1157,4 +1163,140 @@ async function deleteFornecedor(id) {
     loadFornecedores();
     toast('Fornecedor removido.');
   } catch(e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BACKUP — Exporta todos os dados da empresa para .xlsx
+// ═══════════════════════════════════════════════════════════
+async function doBackup() {
+  toast('Gerando backup, aguarde...', 'success');
+  try {
+    // Busca todos os dados em paralelo
+    const [transacoes, produtos, movimentos, clientes, fornecedores, categorias, audit] = await Promise.all([
+      api('GET', '/transacoes'),
+      api('GET', '/produtos'),
+      api('GET', '/movimentos'),
+      api('GET', '/clientes'),
+      api('GET', '/fornecedores'),
+      api('GET', '/categorias-financeiro'),
+      api('GET', '/relatorios/audit-log'),
+    ]);
+
+    const wb = XLSX.utils.book_new();
+
+    // ── Aba: Transações ──────────────────────────────────
+    const transRows = (transacoes || []).map(r => ({
+      'ID':           r.id,
+      'Tipo':         r.tipo,
+      'Descrição':    r.descricao,
+      'Valor (R$)':   Number(r.valor),
+      'Data':         r.data ? String(r.data).substring(0,10) : '',
+      'Status':       r.status,
+      'Categoria':    r.categoria_nome || '',
+      'Cliente':      r.cliente_nome   || '',
+      'Fornecedor':   r.fornecedor_nome|| '',
+      'Observação':   r.observacao     || '',
+      'Criado em':    r.criado_em      || '',
+    }));
+    const wsTransacoes = XLSX.utils.json_to_sheet(transRows.length ? transRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsTransacoes, 'Transações');
+
+    // ── Aba: Produtos ────────────────────────────────────
+    const prodRows = (produtos || []).map(r => ({
+      'ID':              r.id,
+      'Código':          r.codigo,
+      'Nome':            r.nome,
+      'Descrição':       r.descricao       || '',
+      'Estoque Atual':   Number(r.estoque_atual),
+      'Estoque Mínimo':  Number(r.estoque_minimo),
+      'Custo (R$)':      Number(r.custo),
+      'Preço Venda (R$)':Number(r.preco_venda),
+      'Unidade':         r.unidade,
+      'Ativo':           r.ativo ? 'Sim' : 'Não',
+      'Criado em':       r.criado_em || '',
+    }));
+    const wsProdutos = XLSX.utils.json_to_sheet(prodRows.length ? prodRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsProdutos, 'Produtos');
+
+    // ── Aba: Movimentações de Estoque ────────────────────
+    const movRows = (movimentos || []).map(r => ({
+      'ID':              r.id,
+      'Data/Hora':       r.data_hora     || '',
+      'Produto':         r.produto_nome  || '',
+      'Código Produto':  r.produto_codigo|| '',
+      'Tipo':            r.tipo,
+      'Quantidade':      Number(r.quantidade),
+      'Custo Unit. (R$)':Number(r.custo_unitario),
+      'Total (R$)':      r.tipo === 'entrada' ? Number(r.quantidade) * Number(r.custo_unitario) : 0,
+      'Usuário':         r.usuario_nome  || '',
+      'Observação':      r.observacao    || '',
+    }));
+    const wsMovimentos = XLSX.utils.json_to_sheet(movRows.length ? movRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsMovimentos, 'Movimentações Estoque');
+
+    // ── Aba: Clientes ────────────────────────────────────
+    const cliRows = (clientes || []).map(r => ({
+      'ID':        r.id,
+      'Nome':      r.nome,
+      'CPF/CNPJ':  r.cpf_cnpj  || '',
+      'Telefone':  r.telefone  || '',
+      'Email':     r.email     || '',
+      'Endereço':  r.endereco  || '',
+      'Cidade':    r.cidade    || '',
+      'UF':        r.uf        || '',
+      'CEP':       r.cep       || '',
+      'Criado em': r.criado_em || '',
+    }));
+    const wsClientes = XLSX.utils.json_to_sheet(cliRows.length ? cliRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsClientes, 'Clientes');
+
+    // ── Aba: Fornecedores ────────────────────────────────
+    const fornRows = (fornecedores || []).map(r => ({
+      'ID':           r.id,
+      'Razão Social': r.razao_social,
+      'CNPJ':         r.cnpj      || '',
+      'Contato':      r.contato   || '',
+      'Email':        r.email     || '',
+      'Telefone':     r.telefone  || '',
+      'Endereço':     r.endereco  || '',
+      'Cidade':       r.cidade    || '',
+      'UF':           r.uf        || '',
+      'Criado em':    r.criado_em || '',
+    }));
+    const wsFornecedores = XLSX.utils.json_to_sheet(fornRows.length ? fornRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsFornecedores, 'Fornecedores');
+
+    // ── Aba: Categorias ──────────────────────────────────
+    const catRows = (categorias || []).map(r => ({
+      'ID':   r.id,
+      'Nome': r.nome,
+      'Tipo': r.tipo,
+    }));
+    const wsCategorias = XLSX.utils.json_to_sheet(catRows.length ? catRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsCategorias, 'Categorias');
+
+    // ── Aba: Log de Auditoria ────────────────────────────
+    const auditRows = (audit || []).map(r => ({
+      'ID':        r.id,
+      'Data/Hora': r.data_hora || '',
+      'Usuário':   r.username  || '',
+      'Ação':      r.acao,
+      'Tabela':    r.tabela    || '',
+      'Detalhe':   r.detalhe   || '',
+    }));
+    const wsAudit = XLSX.utils.json_to_sheet(auditRows.length ? auditRows : [{'Sem dados': ''}]);
+    XLSX.utils.book_append_sheet(wb, wsAudit, 'Log Auditoria');
+
+    // ── Gera e faz download do arquivo ──────────────────
+    const slug     = currentUser.slug || 'empresa';
+    const dataHoje = new Date().toISOString().split('T')[0];
+    const fileName = `backup_${slug}_${dataHoje}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    toast(`Backup gerado: ${fileName}`, 'success');
+
+  } catch(e) {
+    console.error(e);
+    toast('Erro ao gerar backup: ' + e.message, 'error');
+  }
 }
