@@ -541,6 +541,8 @@ async function loadReceitas() {
   if (cat) qs += `&status=${encodeURIComponent(cat)}`;
   const rows = await api('GET', `/transacoes${qs}`) || [];
   const statusBadge = s => s==='pago'?'badge-green':s==='pendente'?'badge-amber':'badge-red';
+  const statusOptions = status => ['pago','pendente','cancelado']
+    .map(opt => `<option value="${opt}" ${opt===status?'selected':''}>${opt}</option>`).join('');
   document.getElementById('tb-receitas').innerHTML = rows.length
     ? rows.map(r => `
         <tr>
@@ -549,7 +551,14 @@ async function loadReceitas() {
           <td><span class="badge badge-blue">${r.categoria_nome||'—'}</span></td>
           <td>${r.cliente_nome||'—'}</td>
           <td class="money money-green">+${fmt(r.valor)}</td>
-          <td><span class="badge ${statusBadge(r.status)}">${r.status}</span></td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+              <select class="search-input" style="min-width:130px;" onchange="updateTransacaoStatus(${r.id},'receita',this.value)">
+                ${statusOptions(r.status)}
+              </select>
+            </div>
+          </td>
           <td><button class="btn btn-danger btn-sm" onclick="deleteTransacao(${r.id},'receita')">✕</button></td>
         </tr>`).join('')
     : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px;">Nenhuma receita encontrada</td></tr>`;
@@ -566,6 +575,8 @@ async function loadDespesas() {
   if (cat) qs += `&status=${encodeURIComponent(cat)}`;
   const rows = await api('GET', `/transacoes${qs}`) || [];
   const statusBadge = s => s==='pago'?'badge-green':s==='pendente'?'badge-amber':'badge-red';
+  const statusOptions = status => ['pago','pendente','cancelado']
+    .map(opt => `<option value="${opt}" ${opt===status?'selected':''}>${opt}</option>`).join('');
   document.getElementById('tb-despesas').innerHTML = rows.length
     ? rows.map(r => `
         <tr>
@@ -574,7 +585,14 @@ async function loadDespesas() {
           <td><span class="badge badge-red">${r.categoria_nome||'—'}</span></td>
           <td>${r.fornecedor_nome||'—'}</td>
           <td class="money money-red">-${fmt(r.valor)}</td>
-          <td><span class="badge ${statusBadge(r.status)}">${r.status}</span></td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+              <select class="search-input" style="min-width:130px;" onchange="updateTransacaoStatus(${r.id},'despesa',this.value)">
+                ${statusOptions(r.status)}
+              </select>
+            </div>
+          </td>
           <td><button class="btn btn-danger btn-sm" onclick="deleteTransacao(${r.id},'despesa')">✕</button></td>
         </tr>`).join('')
     : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px;">Nenhuma despesa encontrada</td></tr>`;
@@ -904,7 +922,7 @@ async function openModal(type, id = null) {
       <div class="form-group"><label>Nome*</label><input id="m-nome" value="${p.nome}" placeholder="Nome do produto"/></div>
       <div class="form-row">
         <div class="form-group"><label>Estoque Mínimo</label><input id="m-estoque-min" type="number" value="${p.estoque_minimo}" min="0"/></div>
-        <div class="form-group"><label>Estoque ${isEdit?'Atual (leia-só)':'Inicial'}</label><input id="m-estoque" type="number" value="${p.estoque_atual}" min="0" ${isEdit?'disabled':''}></div>
+        <div class="form-group"><label>Estoque ${isEdit?'Atual':'Inicial'}</label><input id="m-estoque" type="number" value="${p.estoque_atual}" min="0"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Custo (R$)</label><input id="m-custo" type="number" step="0.01" value="${p.custo}" min="0"/></div>
@@ -1124,6 +1142,15 @@ async function saveFornecedor() {
 // ═══════════════════════════════════════════════════════════
 // DELETES
 // ═══════════════════════════════════════════════════════════
+async function updateTransacaoStatus(id, tipo, status) {
+  try {
+    await api('PUT', `/transacoes/${id}/status`, { status });
+    if (tipo === 'receita') loadReceitas(); else loadDespesas();
+    refreshDashboard();
+    toast(`Status da ${tipo} atualizado para ${status}.`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
 async function deleteTransacao(id, tipo) {
   if (!confirm(`Excluir esta ${tipo}? Esta ação não pode ser desfeita.`)) return;
   try {

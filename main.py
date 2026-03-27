@@ -1,6 +1,6 @@
 """
-FinControl Pro — Backend FastAPI + SQLite Multi-Tenant
-Cada empresa tem seu próprio banco: data/{slug}.db
+FinControl Pro â€” Backend FastAPI + SQLite Multi-Tenant
+Cada empresa tem seu prÃ³prio banco: data/{slug}.db
 Super-admin no banco principal: fincontrol_master.db
 """
 
@@ -18,16 +18,17 @@ from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # CONFIG
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 SECRET_KEY          = "fincontrol-secret-2024-sqlite"
 ALGORITHM           = "HS256"
 TOKEN_EXPIRE_HOURS  = 12
 MASTER_DB           = "fincontrol_master.db"
+LEGACY_TENANT_DB    = "fincontrol.db"
 DATA_DIR            = "data"          # pasta onde ficam os .db de cada empresa
 SUPERADMIN_USER     = "superadmin"
-SUPERADMIN_PASS     = "Super@2024!"   # TROQUE ESTA SENHA em produção
+SUPERADMIN_PASS     = "Super@2024!"   # TROQUE ESTA SENHA em produÃ§Ã£o
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -43,12 +44,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DB HELPERS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def db_path_for(slug: str) -> str:
     """Retorna o caminho do banco de uma empresa pelo slug."""
-    return os.path.join(DATA_DIR, f"{slug}.db")
+    tenant_path = os.path.join(DATA_DIR, f"{slug}.db")
+    if os.path.exists(tenant_path):
+        return tenant_path
+    if os.path.exists(LEGACY_TENANT_DB):
+        return LEGACY_TENANT_DB
+    return tenant_path
 
 @contextmanager
 def get_master_db():
@@ -88,9 +94,9 @@ def row_to_dict(row):
 def rows_to_list(rows):
     return [dict(r) for r in rows]
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # INIT MASTER DB
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def init_master_db():
     with get_master_db() as conn:
         conn.executescript("""
@@ -117,9 +123,9 @@ def init_master_db():
                 (SUPERADMIN_USER, pwd_ctx.hash(SUPERADMIN_PASS), "Super Administrador")
             )
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # INIT TENANT DB (banco de cada empresa)
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def init_tenant_db(slug: str):
     with get_tenant_db(slug) as conn:
         conn.executescript("""
@@ -217,20 +223,20 @@ def init_tenant_db(slug: str):
         );
         """)
 
-        # Seed categorias padrão se vazio
+        # Seed categorias padrÃ£o se vazio
         cats_exist = conn.execute("SELECT COUNT(*) FROM categorias_financeiro").fetchone()[0]
         if cats_exist == 0:
             cats = [
-                ('Vendas','receita'),('Serviços','receita'),('Investimentos','receita'),
-                ('Aluguéis Recebidos','receita'),('Outras Receitas','receita'),
+                ('Vendas','receita'),('ServiÃ§os','receita'),('Investimentos','receita'),
+                ('AluguÃ©is Recebidos','receita'),('Outras Receitas','receita'),
                 ('Fornecedores','despesa'),('Folha de Pagamento','despesa'),
                 ('Aluguel','despesa'),('Utilities','despesa'),('Marketing','despesa'),
-                ('Impostos','despesa'),('Manutenção','despesa'),('Outras Despesas','despesa'),
+                ('Impostos','despesa'),('ManutenÃ§Ã£o','despesa'),('Outras Despesas','despesa'),
             ]
             conn.executemany("INSERT INTO categorias_financeiro (nome,tipo) VALUES (?,?)", cats)
 
 def seed_tenant_admin(slug: str, username: str, senha: str, nome: str):
-    """Cria o usuário admin inicial da empresa."""
+    """Cria o usuÃ¡rio admin inicial da empresa."""
     with get_tenant_db(slug) as conn:
         exists = conn.execute("SELECT 1 FROM usuarios WHERE username=?", (username,)).fetchone()
         if not exists:
@@ -247,9 +253,9 @@ def seed_tenant_admin(slug: str, username: str, senha: str, nome: str):
                 ('operador', pwd_ctx.hash('op123'), 'Operador', 'operador')
             )
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # AUTH HELPERS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def create_token(data: dict):
     exp = datetime.utcnow() + timedelta(hours=TOKEN_EXPIRE_HOURS)
     return jwt.encode({**data, "exp": exp}, SECRET_KEY, algorithm=ALGORITHM)
@@ -264,7 +270,7 @@ def verify_token(token: str = Depends(oauth2)):
             raise HTTPException(status_code=401)
         return {"uid": int(uid), "slug": slug, "super": is_super}
     except JWTError:
-        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+        raise HTTPException(status_code=401, detail="Token invÃ¡lido ou expirado")
 
 def get_current_user(tok: dict = Depends(verify_token)):
     if tok["super"]:
@@ -283,7 +289,7 @@ def get_current_user(tok: dict = Depends(verify_token)):
 
 def require_tenant_user(user=Depends(get_current_user)):
     if user.get("super"):
-        raise HTTPException(status_code=403, detail="Super-admin não acessa dados de empresa diretamente")
+        raise HTTPException(status_code=403, detail="Super-admin nÃ£o acessa dados de empresa diretamente")
     return user
 
 def audit(conn, user, acao, tabela=None, detalhe=None):
@@ -292,16 +298,16 @@ def audit(conn, user, acao, tabela=None, detalhe=None):
         (user['id'], user['username'], acao, tabela, detalhe)
     )
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # AUTH ENDPOINTS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.post("/auth/login")
 async def login(username: str = Form(...), password: str = Form(...),
                 x_empresa_slug: Optional[str] = Header(None)):
     """
     Login unificado.
-    - Se x_empresa_slug header estiver presente → login na empresa.
-    - Se não → tenta superadmin primeiro, depois procura em todas as empresas.
+    - Se x_empresa_slug header estiver presente â†’ login na empresa.
+    - Se nÃ£o â†’ tenta superadmin primeiro, depois procura em todas as empresas.
     """
     # 1. Tenta superadmin
     with get_master_db() as conn:
@@ -312,15 +318,15 @@ async def login(username: str = Form(...), password: str = Form(...),
                     "usuario": {"id": sa['id'], "username": sa['username'],
                                 "nome": sa['nome'], "role": "superadmin", "slug": None}}
 
-    # 2. Login em empresa específica via header
+    # 2. Login em empresa especÃ­fica via header
     if x_empresa_slug:
         slug = x_empresa_slug.strip().lower()
         if not os.path.exists(db_path_for(slug)):
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa nÃ£o encontrada")
         with get_tenant_db(slug) as conn:
             u = conn.execute("SELECT * FROM usuarios WHERE username=? AND ativo=1", (username,)).fetchone()
             if not u or not pwd_ctx.verify(password, u['senha']):
-                raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
+                raise HTTPException(status_code=401, detail="UsuÃ¡rio ou senha invÃ¡lidos")
             u = row_to_dict(u)
             audit(conn, u, "LOGIN", "usuarios", "Login bem-sucedido")
         token = create_token({"sub": str(u['id']), "slug": slug})
@@ -345,11 +351,11 @@ async def login(username: str = Form(...), password: str = Form(...),
                 u['slug'] = slug
                 return {"access_token": token, "token_type": "bearer", "usuario": u}
 
-    raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
+    raise HTTPException(status_code=401, detail="UsuÃ¡rio ou senha invÃ¡lidos")
 
-# ─────────────────────────────────────────────
-# SUPERADMIN — GESTÃO DE EMPRESAS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# SUPERADMIN â€” GESTÃƒO DE EMPRESAS
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class EmpresaIn(BaseModel):
     nome: str
     slug: str
@@ -367,7 +373,7 @@ async def list_empresas(user=Depends(get_current_user)):
         raise HTTPException(status_code=403)
     with get_master_db() as conn:
         rows = rows_to_list(conn.execute("SELECT * FROM empresas ORDER BY nome").fetchall())
-    # Enriquece com contagem de usuários
+    # Enriquece com contagem de usuÃ¡rios
     for emp in rows:
         db = db_path_for(emp['slug'])
         if os.path.exists(db):
@@ -385,30 +391,29 @@ async def list_empresas(user=Depends(get_current_user)):
 async def create_empresa(e: EmpresaIn, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
-    # Valida slug
-    slug = re.sub(r'[^a-z0-9_-]', '', e.slug.strip().lower())
-    if not slug:
-        raise HTTPException(status_code=400, detail="Slug inválido")
+    if not re.fullmatch(r"[a-z0-9_-]{3,30}", e.slug):
+        raise HTTPException(status_code=400, detail="Slug invÃ¡lido")
     with get_master_db() as conn:
-        try:
-            conn.execute("INSERT INTO empresas (nome,slug) VALUES (?,?)", (e.nome.strip(), slug))
-        except sqlite3.IntegrityError:
-            raise HTTPException(status_code=400, detail="Slug já utilizado por outra empresa")
-    # Cria banco da empresa e admin inicial
-    init_tenant_db(slug)
-    seed_tenant_admin(slug, e.admin_username, e.admin_senha, e.admin_nome)
-    return {"ok": True, "slug": slug}
+        exists = conn.execute("SELECT 1 FROM empresas WHERE slug=?", (e.slug,)).fetchone()
+        if exists:
+            raise HTTPException(status_code=400, detail="Slug jÃ¡ utilizado por outra empresa")
+        conn.execute(
+            "INSERT INTO empresas (nome,slug,ativo) VALUES (?,?,1)",
+            (e.nome, e.slug)
+        )
+    init_tenant_db(e.slug)
+    seed_tenant_admin(e.slug, e.admin_username, e.admin_senha, e.admin_nome)
+    return {"ok": True}
 
 @app.put("/superadmin/empresas/{slug}")
 async def update_empresa(slug: str, e: EmpresaUpdateIn, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
     with get_master_db() as conn:
-        row = conn.execute("SELECT id FROM empresas WHERE slug=?", (slug,)).fetchone()
+        row = conn.execute("SELECT * FROM empresas WHERE slug=?", (slug,)).fetchone()
         if not row:
             raise HTTPException(status_code=404)
-        conn.execute("UPDATE empresas SET nome=?, ativo=? WHERE slug=?",
-                     (e.nome, 1 if e.ativo else 0, slug))
+        conn.execute("UPDATE empresas SET nome=?, ativo=? WHERE slug=?", (e.nome, 1 if e.ativo else 0, slug))
     return {"ok": True}
 
 @app.delete("/superadmin/empresas/{slug}", status_code=204)
@@ -416,111 +421,110 @@ async def delete_empresa(slug: str, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
     with get_master_db() as conn:
-        row = conn.execute("SELECT id FROM empresas WHERE slug=?", (slug,)).fetchone()
+        row = conn.execute("SELECT * FROM empresas WHERE slug=?", (slug,)).fetchone()
         if not row:
             raise HTTPException(status_code=404)
         conn.execute("DELETE FROM empresas WHERE slug=?", (slug,))
-    # Remove banco da empresa
     db = db_path_for(slug)
     if os.path.exists(db):
         os.remove(db)
 
 @app.get("/superadmin/empresas/{slug}/usuarios")
-async def get_empresa_usuarios(slug: str, user=Depends(get_current_user)):
+async def list_empresa_users(slug: str, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
     if not os.path.exists(db_path_for(slug)):
         raise HTTPException(status_code=404)
     with get_tenant_db(slug) as conn:
         rows = rows_to_list(conn.execute(
-            "SELECT id,username,nome,role,ativo,criado_em FROM usuarios ORDER BY nome"
+            "SELECT id,username,nome,role,ativo,criado_em FROM usuarios ORDER BY id DESC"
         ).fetchall())
     return rows
 
-class UsuarioTenantIn(BaseModel):
+class TenantUserIn(BaseModel):
     username: str
     senha: str
     nome: str
     role: str = "operador"
 
+class TenantUserPassIn(BaseModel):
+    senha: str
+
 @app.post("/superadmin/empresas/{slug}/usuarios", status_code=201)
-async def add_empresa_usuario(slug: str, u: UsuarioTenantIn, user=Depends(get_current_user)):
+async def create_empresa_user(slug: str, u: TenantUserIn, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
     if not os.path.exists(db_path_for(slug)):
         raise HTTPException(status_code=404)
     with get_tenant_db(slug) as conn:
-        try:
-            conn.execute(
-                "INSERT INTO usuarios (username,senha,nome,role) VALUES (?,?,?,?)",
-                (u.username, pwd_ctx.hash(u.senha), u.nome, u.role)
-            )
-        except sqlite3.IntegrityError:
-            raise HTTPException(status_code=400, detail="Username já existe nesta empresa")
-    return {"ok": True}
+        exists = conn.execute("SELECT 1 FROM usuarios WHERE username=?", (u.username,)).fetchone()
+        if exists:
+            raise HTTPException(status_code=400, detail="Username jÃ¡ existe nesta empresa")
+        cur = conn.execute(
+            "INSERT INTO usuarios (username,senha,nome,role) VALUES (?,?,?,?)",
+            (u.username, pwd_ctx.hash(u.senha), u.nome, u.role)
+        )
+    return {"id": cur.lastrowid, "ok": True}
 
-class AlterarSenhaIn(BaseModel):
-    nova_senha: str
-
-@app.patch("/superadmin/empresas/{slug}/usuarios/{uid}/senha")
-async def alterar_senha_usuario(slug: str, uid: int, body: AlterarSenhaIn, user=Depends(get_current_user)):
+@app.put("/superadmin/empresas/{slug}/usuarios/{uid}/senha")
+async def update_empresa_user_password(slug: str, uid: int, payload: TenantUserPassIn, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
-    if not body.nova_senha or len(body.nova_senha) < 4:
+    if len(payload.senha) < 4:
         raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 4 caracteres")
     if not os.path.exists(db_path_for(slug)):
         raise HTTPException(status_code=404)
     with get_tenant_db(slug) as conn:
         row = conn.execute("SELECT id FROM usuarios WHERE id=?", (uid,)).fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="Usuário não encontrado")
-        conn.execute("UPDATE usuarios SET senha=? WHERE id=?", (pwd_ctx.hash(body.nova_senha), uid))
+            raise HTTPException(status_code=404, detail="UsuÃ¡rio nÃ£o encontrado")
+        conn.execute("UPDATE usuarios SET senha=? WHERE id=?", (pwd_ctx.hash(payload.senha), uid))
     return {"ok": True}
 
 @app.delete("/superadmin/empresas/{slug}/usuarios/{uid}", status_code=204)
-async def remove_empresa_usuario(slug: str, uid: int, user=Depends(get_current_user)):
+async def delete_empresa_user(slug: str, uid: int, user=Depends(get_current_user)):
     if not user.get("super"):
         raise HTTPException(status_code=403)
     if not os.path.exists(db_path_for(slug)):
         raise HTTPException(status_code=404)
     with get_tenant_db(slug) as conn:
-        conn.execute("UPDATE usuarios SET ativo=0 WHERE id=?", (uid,))
+        row = conn.execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        conn.execute("DELETE FROM usuarios WHERE id=?", (uid,))
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # DASHBOARD
-# ─────────────────────────────────────────────
-@app.get("/dashboard")
-async def dashboard(user=Depends(require_tenant_user)):
-    slug = user['slug']
-    with get_tenant_db(slug) as conn:
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@app.get("/dashboard/resumo")
+async def dashboard_resumo(user=Depends(require_tenant_user)):
+    with get_tenant_db(user['slug']) as conn:
         saldo_rec  = conn.execute("SELECT COALESCE(SUM(valor),0) FROM transacoes WHERE tipo='receita' AND status='pago'").fetchone()[0]
         saldo_desp = conn.execute("SELECT COALESCE(SUM(valor),0) FROM transacoes WHERE tipo='despesa' AND status='pago'").fetchone()[0]
         total_prods= conn.execute("SELECT COUNT(*) FROM produtos WHERE ativo=1").fetchone()[0]
         estoque_baixo = conn.execute("SELECT COUNT(*) FROM produtos WHERE ativo=1 AND estoque_atual <= estoque_minimo").fetchone()[0]
-        estoque_critico = rows_to_list(conn.execute(
+        criticos = rows_to_list(conn.execute(
             "SELECT id,codigo,nome,estoque_atual,estoque_minimo FROM produtos WHERE ativo=1 AND estoque_atual <= estoque_minimo ORDER BY (estoque_atual - estoque_minimo) ASC LIMIT 10"
         ).fetchall())
-        ultimas = rows_to_list(conn.execute(
-            "SELECT t.*,c.nome as cat_nome FROM transacoes t LEFT JOIN categorias_financeiro c ON t.categoria_id=c.id ORDER BY t.criado_em DESC LIMIT 8"
-        ).fetchall())
     return {
-        "saldo": saldo_rec - saldo_desp,
+        "saldo_atual": saldo_rec - saldo_desp,
         "total_receitas": saldo_rec,
         "total_despesas": saldo_desp,
         "total_produtos": total_prods,
         "estoque_baixo": estoque_baixo,
-        "estoque_critico": estoque_critico,
-        "ultimas_transacoes": ultimas,
+        "produtos_criticos": criticos
     }
 
-@app.get("/dashboard/fluxo-mensal")
-async def fluxo_mensal(user=Depends(require_tenant_user)):
+@app.get("/dashboard/fluxo-7dias")
+async def dashboard_fluxo(user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
         rows = rows_to_list(conn.execute("""
-            SELECT strftime('%Y-%m', data) as mes, tipo, SUM(valor) as total
+            SELECT substr(data,1,7) as mes,
+                   tipo,
+                   SUM(valor) as total
             FROM transacoes WHERE status='pago'
-              AND data >= date('now','-6 months')
-            GROUP BY mes, tipo ORDER BY mes
+            GROUP BY substr(data,1,7), tipo
+            ORDER BY mes
         """).fetchall())
     return rows
 
@@ -528,10 +532,11 @@ async def fluxo_mensal(user=Depends(require_tenant_user)):
 async def cat_despesas(user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
         rows = rows_to_list(conn.execute("""
-            SELECT COALESCE(c.nome,'Outras') as categoria, SUM(t.valor) as total
-            FROM transacoes t LEFT JOIN categorias_financeiro c ON t.categoria_id=c.id
+            SELECT c.nome, SUM(t.valor) as total
+            FROM transacoes t
+            JOIN categorias_financeiro c ON t.categoria_id=c.id
             WHERE t.tipo='despesa' AND t.status='pago'
-            GROUP BY t.categoria_id ORDER BY total DESC LIMIT 8
+            GROUP BY c.id ORDER BY total DESC
         """).fetchall())
     return rows
 
@@ -539,24 +544,35 @@ async def cat_despesas(user=Depends(require_tenant_user)):
 async def cat_receitas(user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
         rows = rows_to_list(conn.execute("""
-            SELECT COALESCE(c.nome,'Outras') as categoria, SUM(t.valor) as total
-            FROM transacoes t LEFT JOIN categorias_financeiro c ON t.categoria_id=c.id
+            SELECT c.nome, SUM(t.valor) as total
+            FROM transacoes t
+            JOIN categorias_financeiro c ON t.categoria_id=c.id
             WHERE t.tipo='receita' AND t.status='pago'
-            GROUP BY t.categoria_id ORDER BY total DESC LIMIT 8
+            GROUP BY c.id ORDER BY total DESC
         """).fetchall())
     return rows
 
-# ─────────────────────────────────────────────
-# CATEGORIAS
-# ─────────────────────────────────────────────
-@app.get("/categorias-financeiro")
-async def get_cats(user=Depends(require_tenant_user)):
+@app.get("/dashboard/ultimas-transacoes")
+async def ultimas_transacoes(user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
-        return rows_to_list(conn.execute("SELECT * FROM categorias_financeiro ORDER BY tipo,nome").fetchall())
+        rows = rows_to_list(conn.execute("""
+            SELECT id, tipo, descricao, valor, data, status
+            FROM transacoes
+            ORDER BY id DESC LIMIT 10
+        """).fetchall())
+    return rows
 
-# ─────────────────────────────────────────────
-# TRANSAÇÕES
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# CATEGORIAS FINANCEIRO
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@app.get("/categorias-financeiro")
+async def get_categorias_financeiro(user=Depends(require_tenant_user)):
+    with get_tenant_db(user['slug']) as conn:
+        return rows_to_list(conn.execute("SELECT * FROM categorias_financeiro ORDER BY nome").fetchall())
+
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# TRANSAÃ‡Ã•ES
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class TransacaoIn(BaseModel):
     tipo: str
     descricao: str
@@ -567,6 +583,9 @@ class TransacaoIn(BaseModel):
     cliente_id: Optional[int] = None
     fornecedor_id: Optional[int] = None
     observacao: Optional[str] = None
+
+class TransacaoStatusIn(BaseModel):
+    status: str
 
 @app.get("/transacoes")
 async def get_transacoes(tipo: Optional[str]=None, q: Optional[str]=None,
@@ -599,18 +618,31 @@ async def create_transacao(t: TransacaoIn, user=Depends(require_tenant_user)):
         audit(conn, user, f"CRIAR_{t.tipo.upper()}", "transacoes", f"{t.descricao} R${t.valor:.2f}")
     return {"id": cur.lastrowid, "ok": True}
 
+@app.put("/transacoes/{tid}/status")
+async def update_transacao_status(tid: int, payload: TransacaoStatusIn, user=Depends(require_tenant_user)):
+    if payload.status not in ("pago", "pendente", "cancelado"):
+        raise HTTPException(status_code=400, detail="Status invÃ¡lido")
+    with get_tenant_db(user['slug']) as conn:
+        row = conn.execute("SELECT * FROM transacoes WHERE id=?", (tid,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="TransaÃ§Ã£o nÃ£o encontrada")
+        conn.execute("UPDATE transacoes SET status=? WHERE id=?", (payload.status, tid))
+        audit(conn, user, f"ALTERAR_STATUS_{row['tipo'].upper()}", "transacoes",
+              f"ID {tid} - {row['descricao']} -> {payload.status}")
+    return {"ok": True}
+
 @app.delete("/transacoes/{tid}", status_code=204)
 async def delete_transacao(tid: int, user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
         row = conn.execute("SELECT * FROM transacoes WHERE id=?", (tid,)).fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="Transação não encontrada")
+            raise HTTPException(status_code=404, detail="TransaÃ§Ã£o nÃ£o encontrada")
         conn.execute("DELETE FROM transacoes WHERE id=?", (tid,))
         audit(conn, user, "EXCLUIR_TRANSACAO", "transacoes", f"ID {tid}")
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # PRODUTOS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ProdutoIn(BaseModel):
     codigo: str
     nome: str
@@ -641,7 +673,7 @@ async def create_produto(p: ProdutoIn, user=Depends(require_tenant_user)):
                 (p.codigo, p.nome, p.descricao, p.estoque_atual, p.estoque_minimo, p.custo, p.preco_venda, p.unidade)
             )
         except sqlite3.IntegrityError:
-            raise HTTPException(status_code=400, detail="Código já cadastrado")
+            raise HTTPException(status_code=400, detail="CÃ³digo jÃ¡ cadastrado")
         if p.estoque_atual > 0:
             conn.execute(
                 "INSERT INTO movimentos_estoque (produto_id,tipo,quantidade,custo_unitario,observacao,usuario_id) VALUES (?,?,?,?,?,?)",
@@ -655,11 +687,24 @@ async def update_produto(pid: int, p: ProdutoIn, user=Depends(require_tenant_use
     with get_tenant_db(user['slug']) as conn:
         row = conn.execute("SELECT * FROM produtos WHERE id=? AND ativo=1", (pid,)).fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
+            raise HTTPException(status_code=404, detail="Produto nÃ£o encontrado")
+        estoque_anterior = float(row["estoque_atual"] or 0)
+        estoque_novo = float(p.estoque_atual or 0)
+        delta_estoque = estoque_novo - estoque_anterior
         conn.execute(
-            "UPDATE produtos SET nome=?,descricao=?,estoque_minimo=?,custo=?,preco_venda=?,unidade=? WHERE id=?",
-            (p.nome, p.descricao, p.estoque_minimo, p.custo, p.preco_venda, p.unidade, pid)
+            "UPDATE produtos SET nome=?,descricao=?,estoque_atual=?,estoque_minimo=?,custo=?,preco_venda=?,unidade=? WHERE id=?",
+            (p.nome, p.descricao, estoque_novo, p.estoque_minimo, p.custo, p.preco_venda, p.unidade, pid)
         )
+        if delta_estoque != 0:
+            conn.execute(
+                "INSERT INTO movimentos_estoque (produto_id,tipo,quantidade,custo_unitario,observacao,usuario_id) VALUES (?,?,?,?,?,?)",
+                (pid,
+                 'entrada' if delta_estoque > 0 else 'saida',
+                 abs(delta_estoque),
+                 p.custo,
+                 'Ajuste manual via ediÃ§Ã£o do produto',
+                 user['id'])
+            )
         audit(conn, user, "EDITAR_PRODUTO", "produtos", p.nome)
     return {"ok": True}
 
@@ -674,9 +719,9 @@ async def delete_produto(pid: int, user=Depends(require_tenant_user)):
         conn.execute("UPDATE produtos SET ativo=0 WHERE id=?", (pid,))
         audit(conn, user, "EXCLUIR_PRODUTO", "produtos", f"ID {pid} - {row['nome']}")
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # MOVIMENTOS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class MovimentoIn(BaseModel):
     produto_id: int
     tipo: str
@@ -705,9 +750,9 @@ async def create_movimento(m: MovimentoIn, user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
         prod = conn.execute("SELECT * FROM produtos WHERE id=? AND ativo=1", (m.produto_id,)).fetchone()
         if not prod:
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
+            raise HTTPException(status_code=404, detail="Produto nÃ£o encontrado")
         if m.tipo == 'saida' and prod['estoque_atual'] < m.quantidade:
-            raise HTTPException(status_code=400, detail=f"Estoque insuficiente. Disponível: {prod['estoque_atual']}")
+            raise HTTPException(status_code=400, detail=f"Estoque insuficiente. DisponÃ­vel: {prod['estoque_atual']}")
         delta = m.quantidade if m.tipo == 'entrada' else -m.quantidade
         conn.execute("UPDATE produtos SET estoque_atual=estoque_atual+? WHERE id=?", (delta, m.produto_id))
         cur = conn.execute(
@@ -718,9 +763,9 @@ async def create_movimento(m: MovimentoIn, user=Depends(require_tenant_user)):
               f"{prod['nome']} qtd={m.quantidade}")
     return {"id": cur.lastrowid, "ok": True}
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # CLIENTES
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ClienteIn(BaseModel):
     nome: str
     cpf_cnpj: Optional[str] = None
@@ -761,9 +806,9 @@ async def delete_cliente(cid: int, user=Depends(require_tenant_user)):
         conn.execute("DELETE FROM clientes WHERE id=?", (cid,))
         audit(conn, user, "EXCLUIR_CLIENTE", "clientes", f"ID {cid} - {row['nome']}")
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # FORNECEDORES
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class FornecedorIn(BaseModel):
     razao_social: str
     cnpj: Optional[str] = None
@@ -804,9 +849,9 @@ async def delete_fornecedor(fid: int, user=Depends(require_tenant_user)):
         conn.execute("DELETE FROM fornecedores WHERE id=?", (fid,))
         audit(conn, user, "EXCLUIR_FORNECEDOR", "fornecedores", f"ID {fid} - {row['razao_social']}")
 
-# ─────────────────────────────────────────────
-# RELATÓRIOS
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# RELATÃ“RIOS
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.get("/relatorios/dre")
 async def dre(user=Depends(require_tenant_user)):
     with get_tenant_db(user['slug']) as conn:
@@ -836,20 +881,20 @@ async def audit_log(user=Depends(require_tenant_user)):
         ).fetchall())
     return rows
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # STARTUP
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.on_event("startup")
 async def startup():
     init_master_db()
-    print(f"✅ FinControl Pro Multi-Tenant iniciado")
+    print(f"âœ… FinControl Pro Multi-Tenant iniciado")
     print(f"   Master DB : {os.path.abspath(MASTER_DB)}")
     print(f"   Dados     : {os.path.abspath(DATA_DIR)}/")
     print(f"   Superadmin: {SUPERADMIN_USER} / {SUPERADMIN_PASS}")
 
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # SERVE STATIC FILES
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @app.get("/", include_in_schema=False)
